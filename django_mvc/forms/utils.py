@@ -37,12 +37,12 @@ class Media(forms.Media):
         return [mark_safe(s) for s in self._statements]
 
     def __add__(self, other):
-        combined = Media()
-        combined._js = self.merge(self._js, other._js)
-        combined._css = {
+        combined_js = self.merge(self._js, other._js)
+        combined_css = {
             medium: self.merge(self._css.get(medium, []), other._css.get(medium, []))
             for medium in self._css.keys() | other._css.keys()
         }
+        combined = Media(js=combined_js,css=combined_css)
         if hasattr(other,"_statements"):
             combined._statements = self.merge(self._statements, other._statements)
         else:
