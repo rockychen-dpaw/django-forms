@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='django-forms',
-    version='1.0.0',
+    name='django-mvc',
+    version='1.0.1',
     packages=find_packages(),
-    description='Enhanced form framework for Django/Python apps',
-    url='https://github.com/rockychen-dpaw/django-forms',
+    description='Enhanced mvc framework for Django/Python apps',
+    url='https://github.com/rockychen-dpaw/django-mvc',
     author='Rocky Chen',
     author_email='rocky.chen@dbca.wa.gov.au',
     license='Apache License, Version 2.0',

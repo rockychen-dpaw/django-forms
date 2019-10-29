@@ -1,7 +1,7 @@
 try:
     import LatLon
 except Exception as ex:
-    from django_forms.utils import object_not_imported
+    from django_mvc.utils import object_not_imported
     LatLon = object_not_imported("LatLon",ex)
 
 from .widgets import DisplayWidget

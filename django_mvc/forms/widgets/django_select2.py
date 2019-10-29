@@ -1,7 +1,7 @@
 try:
     from django_select2.forms import Select2MultipleWidget as DjangoSelect2MultipleWidget
 except Exception as ex:
-    from django_forms.utils import class_not_imported
+    from django_mvc.utils import class_not_imported
     DjangoSelect2MultipleWidget = class_not_imported("django_select2.forms.Select2MultipleWidget",ex)
 
 class Select2MultipleWidget(DjangoSelect2MultipleWidget):

@@ -1,7 +1,7 @@
 try:
     import markdown
 except Exception as ex:
-    from django_forms.utils import object_not_imported
+    from django_mvc.utils import object_not_imported
     markdown = object_not_imported("markdown",ex)
 
 from django.utils.html import mark_safe

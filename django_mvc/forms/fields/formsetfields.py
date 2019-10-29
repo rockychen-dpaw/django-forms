@@ -6,8 +6,8 @@ from .. import widgets
 from ..utils import hashvalue
 from .fields import (class_id,field_classes)
 
-from django_forms.signals import formfields_inited,formsetfields_inited
-from django_forms.utils import get_class
+from django_mvc.signals import formfields_inited,formsetfields_inited
+from django_mvc.utils import get_class
 
 django_engine = engines['django']
 class FormSetField(forms.Field):

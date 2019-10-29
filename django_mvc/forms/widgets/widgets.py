@@ -14,8 +14,8 @@ from django.dispatch import receiver
 from django.template.defaultfilters import filesizeformat
 
 from ..utils import hashvalue,JSONEncoder,Media
-from django_forms.signals import formsetfields_inited, widgets_inited
-from django_forms.utils import get_class
+from django_mvc.signals import formsetfields_inited, widgets_inited
+from django_mvc.utils import get_class
 
 
 to_str = lambda o: "" if o is None else str(o)

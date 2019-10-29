@@ -77,7 +77,7 @@ class ModelDictMixin(DictMixin):
 
     @property
     def dependency_tree(self):
-        from django_forms.inspectmodel import ObjectDependencyTree
+        from django_mvc.inspectmodel import ObjectDependencyTree
         try:
             return self._dependency_tree
         except:
@@ -128,7 +128,7 @@ class ModelDictWrapper(DictWrapper):
     """
     @property
     def dependency_tree(self):
-        from django_forms.inspectmodel import ObjectDependencyTree
+        from django_mvc.inspectmodel import ObjectDependencyTree
         try:
             return self.obj._dependency_tree
         except:

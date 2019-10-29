@@ -24,8 +24,8 @@ from .fields import (CompoundField,FormField,FormSetField,AliasFieldMixin)
 
 from .utils import FieldClassConfigDict,FieldWidgetConfigDict,FieldLabelConfigDict,SubpropertyEnabledDict,ChainDict,Media,NoneValueKey
 from ..models import DictMixin,AuditMixin,ModelDictWrapper
-from django_forms.signals import widgets_inited,system_ready
-from django_forms.utils import load_module,is_equal
+from django_mvc.signals import widgets_inited,system_ready
+from django_mvc.utils import load_module,is_equal
 
 class EditableFieldsMixin(object):
     """

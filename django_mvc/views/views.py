@@ -12,12 +12,12 @@ from django.db import transaction
 from django.core.serializers.json import DjangoJSONEncoder
 from urllib.parse import quote
 
-from django_forms.forms.utils import ChainDict,Media
-from django_forms.forms.formsets import ListUpdateForm
-from django_forms.forms.forms import RequestUrlMixin
-from django_forms.forms.listform import ListForm
-from django_forms.inspectmodel import (ObjectDependencyTree,ModelDependencyTree)
-import django_forms.actions
+from django_mvc.forms.utils import ChainDict,Media
+from django_mvc.forms.formsets import ListUpdateForm
+from django_mvc.forms.forms import RequestUrlMixin
+from django_mvc.forms.listform import ListForm
+from django_mvc.inspectmodel import (ObjectDependencyTree,ModelDependencyTree)
+import django_mvc.actions
 
 
 class ReturnHttpResponse(Exception):
@@ -193,7 +193,7 @@ class ModelMixin(object):
 
 
 
-class RequestActionMixin(django_forms.actions.GetActionMixin):
+class RequestActionMixin(django_mvc.actions.GetActionMixin):
     action = None
     selected_action = None
     default_get_action = None

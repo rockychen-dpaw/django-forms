@@ -1,6 +1,6 @@
 import collections
 
-from django import forms as django_forms
+from django import forms as django_mvc
 from django.forms.utils import ErrorList
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -12,10 +12,10 @@ from . import forms
 from . import boundfield
 from . import fields
 from .utils import SubpropertyEnabledDict
-from django_forms.models import DictMixin,ModelDictWrapper
+from django_mvc.models import DictMixin,ModelDictWrapper
 
 
-class ListDataForm(django_forms.BaseForm,collections.Iterable):
+class ListDataForm(django_mvc.BaseForm,collections.Iterable):
     def __init__(self,listform, data=None, files=None, auto_id='id_%s', prefix=None,
                  initial=None, error_class=ErrorList, label_suffix=None,
                  empty_permitted=False, field_order=None, use_required_attribute=None, renderer=None):
@@ -233,7 +233,7 @@ class ToggleableFieldIterator(collections.Iterable):
             raise StopIteration()
 
 
-class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms.ModelFormMetaMixin,django_forms.BaseForm,collections.Iterable,metaclass=ListModelFormMetaclass):
+class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms.ModelFormMetaMixin,django_mvc.BaseForm,collections.Iterable,metaclass=ListModelFormMetaclass):
     """
     Use a form to display list data 
     used to display only
@@ -360,7 +360,7 @@ class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms
     def _check_form(self):
         try:
             self.check_form()
-        except django_forms.ValidationError as e:
+        except django_mvc.ValidationError as e:
             self.add_error(None, e)
 
     def check_form(self):

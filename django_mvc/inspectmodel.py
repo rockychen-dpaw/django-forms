@@ -8,7 +8,7 @@ from django.core.exceptions import (ObjectDoesNotExist,)
 from django.utils.html import mark_safe
 from django.db import transaction
 
-from django_forms.forms.widgets import DisplayWidget
+from django_mvc.forms.widgets import DisplayWidget
 
 HTML_TABLE = 1
 STRING = 2

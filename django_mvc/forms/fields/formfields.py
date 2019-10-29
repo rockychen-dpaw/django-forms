@@ -6,8 +6,8 @@ from ..utils import hashvalue
 from .fields import (class_id,field_classes)
 from ..widgets import (TextDisplay,)
 
-from django_forms.signals import fields_inited,formfields_inited
-from django_forms.utils import get_class
+from django_mvc.signals import fields_inited,formfields_inited
+from django_mvc.utils import get_class
 
 class FormField(forms.Field):
     _form_class = None

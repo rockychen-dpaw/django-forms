@@ -2,7 +2,7 @@ import inspect
 
 from django.dispatch import receiver
 
-from django_forms.signals import django_inited,actions_inited
+from django_mvc.signals import django_inited,actions_inited
 
 class Action(object):
     """
@@ -18,7 +18,7 @@ class Action(object):
         self.callable_attrs = None
 
     def initialize(self):
-        from django_forms.forms import widgets
+        from django_mvc.forms import widgets
         if self.permission and callable(self.permission):
             self.permission = self.permission()
 
