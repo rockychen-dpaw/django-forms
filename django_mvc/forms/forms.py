@@ -280,6 +280,7 @@ class BaseFormMetaclassMixin(object):
     9. editable: True if editable;otherwise False
     10. _extra_update_nonaudit_fields: add extra update non audit fields 
     11. _extra_update_audit_fields: add extra update audit fields
+    12. enhanced_form_fields: True if some form field is not originally supported by django form; otherwise False
 
     Change the following properties into form class
     1.base_fields: always be a empty list to avoid deep clone the fields in form instance.
@@ -416,7 +417,6 @@ class BaseFormMetaclassMixin(object):
             opts = Opts
             setattr(new_class,"_meta",Opts)
 
-    
         #copy properties from Meta class to _meta class
         for item in ("all_fields","ordered_fields","labels_config","field_classes_config","widgets_config","container_attrs","editable_fields","purpose","listfooter_fields"):
             if hasattr(meta,item) :
@@ -987,23 +987,30 @@ class FormInitMixin(object):
         _editable_fields = []
         _editable_formfields = []
         _editable_formsetfields = []
+        enhanced_form_fields = False
         for name,field in cls.all_fields.items():
             if isinstance(field.widget,widgets.DisplayMixin):
+                enhanced_form_fields = True
                 continue
             if isinstance(field,FormField):
                 #it is a form field
                 if not field.is_display:
                     _editable_formfields.append(name)
+                enhanced_form_fields = True
                 continue
             elif isinstance(field,FormSetField):
                 #it is a formset field
                 if not field.is_display:
                     _editable_formsetfields.append(name)
+                enhanced_form_fields = True
                 continue
             else:
                 _editable_fields.append(name)
 
-            if "__" in name:
+            if field.form_declared:
+                #this is a form declared field 
+                continue
+            elif "__" in name:
                 #editable sub properties
                 update_model_properties[0].append(name)
                 update_model_properties[1].append(name)
@@ -1043,11 +1050,15 @@ class FormInitMixin(object):
         setattr(opts,'_editable_fields',_editable_fields)
         setattr(opts,'_editable_formfields',_editable_formfields)
         setattr(opts,'_editable_formsetfields',_editable_formsetfields)
+        setattr(opts,'enhanced_form_fields',enhanced_form_fields)
         setattr(opts,'update_db_fields',update_db_fields)
         setattr(opts,'update_m2m_fields',update_m2m_fields)
         setattr(opts,'update_model_properties',update_model_properties)
         setattr(opts,'save_model_properties',save_model_properties)
         setattr(opts,'editable',True if (_editable_fields or _editable_formfields or _editable_formsetfields) else False)
+
+        setattr(meta,"fields",meta.all_fields)
+        setattr(opts,"fields",meta.all_fields)
  
 class Form(FormInitMixin,ModelFormMetaMixin,ActionMixin,RequestUrlMixin,forms.Form,metaclass=BaseFormMetaclass):
     """
@@ -1121,6 +1132,8 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
     _is_changed = None
     #True for new model instance; False for existing model instance;none if not set
     created = None
+    #contain all the changed data , for debug
+    _changed_data = None
 
     def __init__(self, data=None, files=None, auto_id='id_%s', prefix=None,
                  initial=None, error_class=ErrorList, label_suffix=None,
@@ -1305,9 +1318,9 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
     def _post_clean(self):
         """
         Provide enhanced logic
-        1. Enable clean formset fields
-        2. Enable clean form fields
-        3. Enable clean property fields
+        1. call clean method to clean formset fields
+        2. call clean metod to clean form fields
+        3. save the property data to model
         4. After clean, the following properties will be set
             A. changed_db_fields
             B. changed_m2m_fields
@@ -1412,6 +1425,7 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
         if self.fields:
             super(BaseModelForm,self)._post_clean()
 
+
         #clean formset fields and form fields
         #The formset fields and form fields are removed from self.fields in full_clean method, so we must restore all the fields before cleaning. 
         fields = self.fields
@@ -1442,8 +1456,10 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
                 if self.created is None:
                     raise Exception("Please call full_clean first")
                 elif self.created:
+                    #new model instance
                     changed = True
                 else:
+                    #update existing instance
                     if (self.changed_db_fields or self.changed_m2m_fields or self.changed_model_properties):
                         changed = True
                     else:
@@ -1465,15 +1481,34 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
                 self._is_changed = changed
             finally:
                 pass
+                #print the changed data for debug
                 if (self.created):
                     print("create a {} instance".format(self.instance.__class__.__name__))
-                else:
+                elif self._changed_data:
                     if (self.changed_db_fields or self.changed_m2m_fields or self.changed_model_properties):
                         print("{}({}) was changed. {}{}{}".format(
                             self.instance.__class__.__name__,self.instance.pk,
                             "changed db fields:{}".format(["{}({} => {})".format(f,*self._changed_data.get(f,("!Err","!Err"))) for f in self.changed_db_fields]) if self.changed_db_fields else "", 
                             "  changed properties:{}".format(["{}({} => {})".format(p,*self._changed_data.get(p,["!Err","!Err"])) for p in self.changed_model_properties]) if self.changed_model_properties else "",
                             "  changed m2m fields:{}".format(["{}({} => {})".format(f,*self._changed_data.get(f,("!Err","!Err"))) for f in self.changed_m2m_fields]) if self.changed_m2m_fields else ""
+    
+                    ))
+                    for name in self.editable_formsetfieldnames:
+                        field = self[name]
+                        if field.is_changed:
+                            print("Formset field ({}) was changed".format(name))
+        
+                    for name in self.editable_formfieldnames:
+                        field = self[name]
+                        if field.is_changed:
+                            print("Form field ({}) was changed".format(name))
+                else:
+                    if (self.changed_db_fields or self.changed_m2m_fields or self.changed_model_properties):
+                        print("{}({}) was changed. {}{}{}".format(
+                            self.instance.__class__.__name__,self.instance.pk,
+                            "changed db fields:{}".format(self.changed_db_fields) if self.changed_db_fields else "", 
+                            "  changed properties:{}".format(self.changed_model_properties) if self.changed_model_properties else "",
+                            "  changed m2m fields:{}".format(self.changed_m2m_fields) if self.changed_m2m_fields else ""
     
                     ))
                     for name in self.editable_formsetfieldnames:
@@ -1492,7 +1527,7 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
 
     def get_success_message(self) :
         """
-        Return update success message
+        Return update success message to show in the next page
         """
         if not self.is_changed:
             return "{}({} - {}) wasn't changed".format(self.model_verbose_name,instance.pk,instance)
@@ -1503,6 +1538,7 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
 
     def add_message(self,message,level=messages.SUCCESS):
         """
+        add message, the message will be shown in the next page.
         message can be
         1. string, 
         2. tuple (level,message)
@@ -1542,6 +1578,7 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
             if exclude and f.name in exclude:
                 continue
             if f.name not in self.changed_m2m_fields:
+                #data is not changed, ignore
                 continue
             if f.name in cleaned_data:
                 f.save_form_data(self.instance, cleaned_data[f.name])
@@ -1566,30 +1603,42 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
                 self.add_message(message,messages.INFO)
             return self.instance
 
+        #data is changed
         if self.instance.pk:
             #update a model instance
             if commit:
-                # If committing, save the instance and the m2m data immediately.
+                # save the instance and the m2m data immediately.
+                #assign the current user to modifier if have
                 if hasattr(self.instance,"modifier") and self.request:
                     self.instance.modifier = self.request.user
                 if self.changed_db_fields:
+                    #add the audit fields into changed_db_fields
                     for f in self._meta.extra_update_audit_fields:
                         self.changed_db_fields.append(f)
 
                 with transaction.atomic():
                     if  self.changed_db_fields:
-                        #some db fields has been changed
+                        #some db fields has been changed,save to database
                         self.instance.save(update_fields=self.changed_db_fields)
+
                     if self.changed_model_properties and self.save_model_properties_enabled:
+                        #some model properties are changed, save it
                         self.instance.save_properties(update_fields=self.changed_model_properties)
+
                     if self.changed_m2m_fields:
+                        #save m2m data
                         self._save_m2m()
+                    #save inner formset data
                     self._save_formsets()
+                    #save inner form data
                     self._save_forms()
             else:
-                # If not committing, add a method to the form to allow deferred
-                # saving of m2m data.
+                # If not committing, add a method to the form to allow deferred saving of m2m data.
                 self.save_m2m = self._save_m2m
+                # If not committing, add a method to the form to allow deferred saving inner formset data
+                self.save_formsets = self._save_formsets
+                # If not committing, add a method to the form to allow deferred saving inner form data
+                self.save_forms = self._save_forms
         elif commit:
             #create a model instance
             if self.request:
@@ -1605,7 +1654,12 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
                 self._save_forms()
 
         else:
-            super(BaseModelForm,self).save(commit)
+            # If not committing, add a method to the form to allow deferred saving of m2m data.
+            self.save_m2m = self._save_m2m
+            # If not committing, add a method to the form to allow deferred saving inner formset data
+            self.save_formsets = self._save_formsets
+            # If not committing, add a method to the form to allow deferred saving inner form data
+            self.save_forms = self._save_forms
 
         if savemessage and commit and self.request:
             message = self.get_success_message()
@@ -1614,20 +1668,26 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
         return self.instance
 
     def full_check(self):
+        """
+        Check whether the model instance data is valid or not.
+        Use the form clean logic and error message displaying to check the model instance in different scenario which is identified by property 'check'
+        The form clean logic is to check the cleaned data, in order to use the same clean logic, this method to set cleaned_data to model instance and also guarantee only reading the data from cleaned_data
+        """
         self.cleaned_data = self.instance
         self._errors = ErrorDict()
 
 
-        partial_editing = False if self.editable_fieldnames is None else True
-        opt_fields = self._meta.fields
+        #first check all the editable fields except formset fields and form fields
         try:
-            if partial_editing:
+
+            if self._meta.enhanced_form_fields:
+                opt_fields = self._meta.fields
                 self._meta.fields = self.editable_fieldnames
                 #only include the normal editable fields from db model and dynamically added fields
                 self._editable_fields = self._editable_fields if hasattr(self,'_editable_fields') else OrderedDict([(n,f) for n,f in self.fields.items() if (n in self._meta.fields or n not in self.all_fields) ])
                 self.fields = self._editable_fields
 
-            #clean fields
+            #call clean_ method in form to validate the field data
             for name, field in self.fields.items():
                 # value_from_datadict() gets the data from the data dictionaries.
                 # Each widget type knows how to retrieve its own data, because some
@@ -1637,7 +1697,8 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
                         getattr(self, 'clean_%s' % name)()
                 except ValidationError as e:
                     self.add_error(name, e)
-            #clean form
+
+            #clean clean_form method to clean form data
             self._clean_form()
             #post clean
 
@@ -1664,14 +1725,31 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
                 self.validate_unique()
 
         finally:
-            if partial_editing:
+            if self._meta.enhanced_form_fields:
                 self._meta.fields = opt_fields
                 self.fields = self.all_fields
 
+        #check formset field data
         for name in self.editable_formsetfieldnames:
             field = self[name]
+            #call clean method on formset fields to check formset field data
             if not field.full_check():
                 self.add_error(name, ValidationError(""))
+            #call clean method on current form to check formset field data as a whole
+            clean_funcname = "clean_{}".format(name)
+            if hasattr(self,clean_funcname):
+                try:
+                    getattr(self,clean_funcname)()
+                except ValidationError as e:
+                    self.add_error(name, e)
+
+        #check form field data
+        for name in self.editable_formfieldnames:
+            field = self[name]
+            #call clean method on bound form fields to check form field data
+            if not field.full_check():
+                self.add_error(name, ValidationError(""))
+            #call clean method on current form to check form field data as a whole
             clean_funcname = "clean_{}".format(name)
             if hasattr(self,clean_funcname):
                 try:
@@ -1683,7 +1761,7 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
 
 
     def full_clean(self):
-        if not self.is_bound or self.editable_fieldnames is None:
+        if not self.is_bound or not self._meta.enhanced_form_fields:
             super(BaseModelForm,self).full_clean()
             return
 
