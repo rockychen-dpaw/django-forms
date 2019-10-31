@@ -482,8 +482,10 @@ class ChoiceDisplay(DisplayWidget):
     """
     choices = None
     marked_safe = False
+    coerce = None
             
     def _render(self,name,value,attrs=None,renderer=None):
+        value = self.coerce(value)
         try:
             result = self.__class__.choices[value]
         except KeyError as ex:
@@ -496,6 +498,7 @@ class ChoiceDisplay(DisplayWidget):
             return result
 
     def _render_pattern(self,name,value,attrs=None,renderer=None):
+        value = self.coerce(value)
         try:
             result = self.__class__.choices[value]
         except KeyError as ex:
@@ -509,6 +512,7 @@ class ChoiceDisplay(DisplayWidget):
             return result.format(value)
 
     def _render_template(self,name,value,attrs=None,renderer=None):
+        value = self.coerce(value)
         try:
             result = self.__class__.choices[value]
         except KeyError as ex:
@@ -521,7 +525,7 @@ class ChoiceDisplay(DisplayWidget):
         else:
             return result.render(Context({"object":value}))
 
-def ChoiceWidgetFactory(name,choices,marked_safe=False,data_format=1):
+def ChoiceWidgetFactory(name,choices,marked_safe=False,data_format=1,coerce=None):
     global widget_class_id
     widget_class = ChoiceDisplay
     if isinstance(choices,list) or isinstance(choices,tuple):
@@ -532,14 +536,19 @@ def ChoiceWidgetFactory(name,choices,marked_safe=False,data_format=1):
         raise Exception("Choices must be a dictionary or can be converted to a  dictionary.")
 
     key = "ChoiceWidget<{}>".format(hashvalue("{}{}".format(widget_class.__name__,name)))
+    if coerce is None:
+        coerce = lambda v:v
+
+    coerce = staticmethod(coerce)
+
     cls = widget_classes.get(key)
     if not cls:
         widget_class_id += 1
         class_name = "{}_{}".format(widget_class.__name__,name)
         if data_format == ChoiceWidgetFactory.STRING:
-            cls = type(class_name,(widget_class,),{"choices":choices,"marked_safe":marked_safe,"render":ChoiceDisplay._render})
+            cls = type(class_name,(widget_class,),{"choices":choices,"marked_safe":marked_safe,"render":ChoiceDisplay._render,"coerce":coerce})
         elif data_format == ChoiceWidgetFactory.PATTERN:
-            cls = type(class_name,(widget_class,),{"choices":choices,"marked_safe":marked_safe,"render":ChoiceDisplay._render_pattern})
+            cls = type(class_name,(widget_class,),{"choices":choices,"marked_safe":marked_safe,"render":ChoiceDisplay._render_pattern,"coerce":coerce})
         else:
             #convert the choices value to Template
             if hasattr(choices,"choices"):
@@ -552,7 +561,7 @@ def ChoiceWidgetFactory(name,choices,marked_safe=False,data_format=1):
                         choices.choices[index][1] = Template(choices.choices[index][1])
                         choices.choices[index] = tuple(choices.choices[index])
                     index += 1
-            cls = type(class_name,(widget_class,),{"choices":choices,"marked_safe":marked_safe,"render":ChoiceDisplay._render_template})
+            cls = type(class_name,(widget_class,),{"choices":choices,"marked_safe":marked_safe,"render":ChoiceDisplay._render_template,"coerce":coerce})
         widget_classes[key] = cls
     return cls
 
