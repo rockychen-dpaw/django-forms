@@ -8,7 +8,7 @@ import threading
 
 class SelectOptionMixin(object):
     """
-    simulate a selection object, which should be a tuple or list or iterable object with length 2
+    A mixin to html select option , a iterable object with length 2 (value, label)
     """
     def __iter__(self):
         """
@@ -37,7 +37,7 @@ class SelectOptionMixin(object):
 
 class DictMixin(object):
     """
-    simulate a dict object 
+    A mixin to simulate a readonly dict object 
     """
     def __contains__(self,name):
         return hasattr(self,name)
@@ -62,7 +62,8 @@ class DictMixin(object):
 
 class ModelDictMixin(DictMixin):
     """
-    simulate a dict object 
+    A mixin to simulate a dict object and also implement a property "dependency_tree" to return the whold dependency tree 
+    Used by django form to use the model instance as the initial data directly. so no need to convert the model instance to a dict object
     """
     def __getitem__(self,name):
         try:
@@ -92,7 +93,7 @@ class ModelDictMixin(DictMixin):
 
 class DictWrapper(object):
     """
-    wrapper a object to simulate a dict object 
+    wrapper a object to simulate a readonly dict object 
     """
     def __init__(self,obj):
         self.obj = obj
@@ -124,7 +125,8 @@ class DictWrapper(object):
 
 class ModelDictWrapper(DictWrapper):
     """
-    wrapper a model instance to simulate a dict object 
+    wrapper a model instance to simulate a dict object and also implement a readonly property "dependency_tree" to return the whole dependency tree
+    Used by django form to use the model instance as the initial data directly. so no need to convert the model instance to a dict object
     """
     @property
     def dependency_tree(self):
@@ -140,47 +142,6 @@ class ModelDictWrapper(DictWrapper):
         fake len, just make sure ModelDictMixin instane is always true
         """
         return 1
-
-class ActiveMixinManager(models.Manager):
-    """Manager class for ActiveMixin.
-    """
-    def current(self):
-        return self.filter(effective_to=None)
-
-    def deleted(self):
-        return self.filter(effective_to__isnull=False)
-
-
-class ActiveMixin(models.Model):
-    """Model mixin to allow objects to be saved as 'non-current' or 'inactive',
-    instead of deleting those objects.
-    The standard model delete() method is overridden.
-
-    "effective_to" is used to flag 'deleted' objects (not null==deleted).
-    """
-    effective_to = models.DateTimeField(null=True, blank=True)
-    objects = ActiveMixinManager()
-
-    class Meta:
-        abstract = True
-
-    def is_active(self):
-        return self.effective_to is None
-
-    def is_deleted(self):
-        return not self.is_active()
-
-    def delete(self, *args, **kwargs):
-        """Overide the standard delete method; sets effective_to the current
-        date and time.
-        """
-        if 'force' in kwargs and kwargs['force']:
-            kwargs.pop('force', None)
-            super(ActiveMixin, self).delete(*args, **kwargs)
-        else:
-            self.effective_to = timezone.now()
-            super(ActiveMixin, self).save(*args, **kwargs)
-
 
 class AuditMixin(models.Model):
     """Model mixin to update creation/modification datestamp and user
