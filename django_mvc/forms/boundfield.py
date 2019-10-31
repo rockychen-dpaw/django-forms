@@ -554,9 +554,11 @@ class BoundFormField(BoundField):
         return self._bound_fields_cache[name]
     
     def save(self):
-        self.innnerform.save(savemessage=False)
+        return self.innnerform.save(savemessage=False)
 
 class BoundFormSetField(BoundField):
+    _is_changed = None
+
     def __init__(self,*args,**kwargs):
         super(BoundFormSetField,self).__init__(*args,**kwargs)
         self.formset = self.field.formset_class(data=self.form.data if self.form.is_bound else None,instance_list=self.initial,prefix=self.name,parent_instance=self.form.instance,check=self.form.check)
@@ -583,22 +585,31 @@ class BoundFormSetField(BoundField):
 
     @property
     def is_changed(self):
-        try:
-            for form in self.formset:
-                if form.can_delete:
-                    if form.instance.pk:
-                        return True
-                elif form.is_changed:
-                    return True
-            return False
-        finally:
-            pass
-            for form in self.formset:
-                if form.can_delete:
-                    if form.instance.pk:
-                        print("Delete {}({})".format(form.instance.__class__.__name__,form.instance.pk))
+        if self._is_changed is None:
+            try:
+                changed = False
+                for form in self.formset:
+                    if form.can_delete:
+                        if form.instance.pk:
+                            changed = True
+                            break
+                    elif form.is_changed:
+                        changed = True
+                        break
+                self._is_changed = changed
+            finally:
+                pass
+                for form in self.formset:
+                    if form.can_delete:
+                        if form.instance.pk:
+                            print("Delete {}({})".format(form.instance.__class__.__name__,form.instance.pk))
+        return self._is_changed
+
 
     def save(self):
+        if not self.is_changed:
+            return
+
         for form in self.formset:
             if form.can_delete:
                 if form.instance.pk:
