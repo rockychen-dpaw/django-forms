@@ -1,7 +1,10 @@
 from django.forms import fields as django_fields
 from ..widgets import widgets
+from .. import boundfield
 
 class AggregateField(django_fields.Field):
+    boundfield_class = boundfield.AggregateBoundField
+    
     def __init__(self,form_field_name,*args,**kwargs):
         if "widget" not in kwargs:
             kwargs["widget"] = widgets.TextDisplay()

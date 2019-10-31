@@ -5,6 +5,7 @@ from .. import widgets
 from ..utils import hashvalue
 from .fields import (class_id,field_classes)
 from ..widgets import (TextDisplay,)
+from .. import boundfield
 
 from django_mvc.signals import fields_inited,formfields_inited
 from django_mvc.utils import get_class
@@ -13,6 +14,10 @@ class FormField(forms.Field):
     _form_class = None
     _form_class_name = None
     _is_display=True
+
+    boundfield_class = boundfield.BoundFormField
+
+    
     def __init__(self, *args,**kwargs):
         kwargs["widget"] = kwargs.get("widget") or TextDisplay()
         kwargs["initial"] = None

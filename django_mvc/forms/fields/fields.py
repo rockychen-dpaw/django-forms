@@ -9,7 +9,7 @@ from django_mvc.utils import ConditionalChoice,getallargs
 from .. import widgets
 from ..utils import hashvalue,JSONEncoder
 from .coerces import *
-from ..boundfield import (CompoundBoundField,)
+from .. import boundfield
 
 class_id = 0
 field_classes = {}
@@ -41,6 +41,9 @@ class ObjectField(forms.Field):
     def clean(self,value):
         return value
     
+
+class LoginUserField(ObjectField):
+    boundfield_class = boundfield.LoginUserBoundField
 
 class NullDirectionField(forms.ChoiceField):
     def __init__(self,**kwargs):
@@ -154,6 +157,8 @@ def AliasFieldFactory(model,field_name,field_class=None,field_params=None):
     return field_classes[class_key]
 
 class HtmlStringField(forms.Field):
+    boundfield_class = boundfield.HtmlStringBoundField
+
     def __init__(self,html,*args,**kwargs):
         kwargs["widget"] = widgets.HtmlString
         super(HtmlStringField,self).__init__(*args,**kwargs)
@@ -207,7 +212,14 @@ def CompoundFieldFactory(compoundfield_class,model,field_name,related_field_name
             kwargs["field_kwargs"] = field_kwargs
             kwargs["extra_fields"] = extra_fields
             del kwargs["field_params"]
-        field_classes[class_key] = type(class_name,(compoundfield_class,field_class),kwargs)
+
+
+        field_cls = type(class_name,(compoundfield_class,field_class),kwargs)
+        #set boundfield_class to CompoundBoundField if not present
+        if not hasattr(field_cls,"boundfield_class") or not getattr(field_cls,"boundfield_class"):
+            setattr(field_cls,"boundfield_class",boundfield.CompoundBoundField)
+
+        field_classes[class_key] = field_cls
         #print("{}.{}={}".format(field_name,field_classes[class_key],field_classes[class_key].get_layout))
     return field_classes[class_key]
 

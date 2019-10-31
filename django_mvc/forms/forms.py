@@ -28,6 +28,14 @@ from ..models import DictMixin,AuditMixin,ModelDictWrapper
 from django_mvc.signals import widgets_inited,system_ready
 from django_mvc.utils import load_module,is_equal
 
+
+def create_boundfield(self,form,field,name):
+    """
+    This method will be assigned to form class as instance method to create bound field
+    """
+    return self.boundfield_class(form,field,name)
+    
+
 class EditableFieldsMixin(object):
     """
     A mixin to let the view set the editable fields per request
@@ -276,12 +284,16 @@ class BaseFormMetaclassMixin(object):
     Change the following properties into form class
     1.base_fields: always be a empty list to avoid deep clone the fields in form instance.
         This framework disallow the form class change the field and it's widget in form instance, so no need to clone the fields
+    2.listfooter_fields: a dict for footfield name and foot field instance
+    3.listfooter: 2 dimension list, first list is row; second list is columns. each column is a tuple (field name,colspan)
+    4.model_to_dict:a static method to convert a object to a dict like object
+    5.all_fields: all fields
+    6.total_fields: all_fields + listfooter_fields
 
-    Add the following properties into form class
-    1.listfooter_fields: a dict for footfield name and foot field instance
-    2.listfooter: 2 dimension list, first list is row; second list is columns. each column is a tuple (field name,colspan)
-    3.model_to_dict:a static method to convert a object to a dict like object
-    4.all_fields: all fields
+    Add the follwing properties to all form field instance if required
+    1. create_boundfield: a class method to create a bound field instance for this form field
+    2. boundfield_class: a class property, set to a default class ''BoundField' if not present in field class,
+
     """
  
     @staticmethod
@@ -696,6 +708,12 @@ class BaseFormMetaclassMixin(object):
                 else:
                     raise Exception("Can't declare alias({}) for editable field ({})".format(field_name,formfield.field_name))
 
+            #set the boundfield class if not set by field
+            if not hasattr(formfield,"boundfield_class") or not getattr(formfield,"boundfield_class"):
+                formfield.boundfield_class = boundfield.BoundField
+            #create a instance method to create boundfild
+            formfield.__class__.create_boundfield = create_boundfield
+
             field_list.append((field_name, formfield))
             #check whether widget requires subproperty support
             if not subproperty_enabled and isinstance(formfield.widget,widgets.DataPreparationMixin) and formfield.widget.subproperty_enabled :
@@ -777,7 +795,14 @@ class BaseFormMetaclassMixin(object):
     
                 formfield = formfield_callback(None, **kwargs)
     
+                #set the boundfield class if not set by field
+                if not hasattr(formfield,"boundfield_class") or not getattr(formfield,"boundfield_class"):
+                    formfield.boundfield_class = BoundField
+                #create a instance method to create boundfild
+                formfield.__class__.create_boundfield = create_boundfield
+
                 formfield.form_declared = True
+
                 row_field_list.append((field_name, colspan))
                 listfooter_fields[field_name] = field_class
 
@@ -829,6 +854,12 @@ class BaseFormMetaclassMixin(object):
         #empty the base_fields to avoid deep clone
         setattr(new_class,"all_fields",new_class.base_fields)
         new_class.base_fields = []
+        if not hasattr(new_class,"listfooter_fields") or not getattr(new_class,"listfooter_fields"):
+            total_fields = new_class.all_fields
+        else:
+            total_fields = dict(new_class.all_fields)
+            total_fields.update(new_class.listfooter_fields)
+        setattr(new_class,"total_fields",total_fields)
 
         return new_class
 
@@ -1047,36 +1078,18 @@ class Form(FormInitMixin,ModelFormMetaMixin,ActionMixin,RequestUrlMixin,forms.Fo
     def __getitem__(self, name):
         """Return a BoundField with the given name."""
         try:
-            field = self.fields[name]
+            field = self.total_fields[name]
         except KeyError:
-            try:
-                field = self.listfooter_fields[name]
-            except:
-                raise KeyError(
-                    "Key '%s' not found in '%s'. Choices are: %s." % (
-                        name,
-                        self.__class__.__name__,
-                        ', '.join(sorted([f for f in self.fields] + [f for f in self.listfooter_fields])),
-                    )
+            raise KeyError(
+                "Key '%s' not found in '%s'. Choices are: %s." % (
+                    name,
+                    self.__class__.__name__,
+                    ', '.join(sorted([f for f in self.total_fields])),
                 )
+            )
         if name not in self._bound_fields_cache:
-            if name == "loginuser":
-                self._bound_fields_cache[name] = boundfield.LoginUserBoundField(self,field,name)
-            elif isinstance(field,fields.CompoundField):
-                if field.field_name == 'loginuser':
-                    self._bound_fields_cache[name] = boundfield.LoginUserCompoundBoundField(self,field,name)
-                else:
-                    self._bound_fields_cache[name] = boundfield.CompoundBoundField(self,field,name)
-            elif isinstance(field,fields.FormField):
-                self._bound_fields_cache[name] = boundfield.BoundFormField(self,field,name)
-            elif isinstance(field,fields.FormSetField):
-                self._bound_fields_cache[name] = boundfield.BoundFormSetField(self,field,name)
-            elif isinstance(field,fields.AggregateField):
-                self._bound_fields_cache[name] = boundfield.AggregateBoundField(self,field,name)
-            elif isinstance(field,fields.HtmlStringField):
-                self._bound_fields_cache[name] = boundfield.HtmlStringBoundField(self,field,name)
-            else:
-                self._bound_fields_cache[name] = boundfield.BoundField(self,field,name)
+            self._bound_fields_cache[name] = field.create_boundfield(self,field,name)
+
         return self._bound_fields_cache[name]
 
 class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,metaclass=BaseModelFormMetaclass):
@@ -1688,33 +1701,18 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
     def __getitem__(self, name):
         """Return a BoundField with the given name."""
         try:
-            field = self.all_fields[name]
+            field = self.total_fields[name]
         except KeyError:
-            try:
-                field = self.listfooter_fields[name]
-            except:
-                raise KeyError(
-                    "Key '%s' not found in '%s'. Choices are: %s." % (
-                        name,
-                        self.__class__.__name__,
-                        ', '.join(sorted([f for f in self.fields] + [f for f in self.listfooter_fields])),
-                    )
+            raise KeyError(
+                "Key '%s' not found in '%s'. Choices are: %s." % (
+                    name,
+                    self.__class__.__name__,
+                    ', '.join(sorted([f for f in self.total_fields])),
                 )
+            )
         if name not in self._bound_fields_cache:
-            if name == "loginuser":
-                self._bound_fields_cache[name] = boundfield.LoginUserBoundField(self,field,name)
-            elif isinstance(field,fields.CompoundField):
-                self._bound_fields_cache[name] = boundfield.CompoundBoundField(self,field,name)
-            elif isinstance(field,fields.FormField):
-                self._bound_fields_cache[name] = boundfield.BoundFormField(self,field,name)
-            elif isinstance(field,fields.FormSetField):
-                self._bound_fields_cache[name] = boundfield.BoundFormSetField(self,field,name)
-            elif isinstance(field,fields.AggregateField):
-                self._bound_fields_cache[name] = boundfield.AggregateBoundField(self,field,name)
-            elif isinstance(field,fields.HtmlStringField):
-                self._bound_fields_cache[name] = boundfield.HtmlStringBoundField(self,field,name)
-            else:
-                self._bound_fields_cache[name] = boundfield.BoundField(self,field,name)
+            self._bound_fields_cache[name] = field.create_boundfield(self,field,name)
+
         return self._bound_fields_cache[name]
     
             

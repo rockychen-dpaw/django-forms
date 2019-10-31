@@ -5,6 +5,7 @@ from django.dispatch import receiver
 from .. import widgets
 from ..utils import hashvalue
 from .fields import (class_id,field_classes)
+from .. import boundfield
 
 from django_mvc.signals import formfields_inited,formsetfields_inited
 from django_mvc.utils import get_class
@@ -15,6 +16,9 @@ class FormSetField(forms.Field):
     _formset_class_name = None
     _template = None
     _is_display = True
+
+    boundfield_class = boundfield.BoundFormSetField
+
     def __init__(self, *args,**kwargs):
         kwargs["widget"] = kwargs["widget"] or TextDisplay()
         kwargs["initial"] = None
