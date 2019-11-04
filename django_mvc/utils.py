@@ -195,6 +195,10 @@ def is_equal(o1,o2):
                 elif not is_equal(v,o2[k]):
                     return False
             return True
+    elif o1 is None:
+        return False
+    elif o2 is None:
+        return False
     elif o1.__class__ == o2.__class__:
         return False
     else:
