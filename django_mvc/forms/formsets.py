@@ -2,11 +2,14 @@ from django.forms import formsets
 from django.core.exceptions import ObjectDoesNotExist,ValidationError,NON_FIELD_ERRORS
 from django.forms.formsets import DELETION_FIELD_NAME
 from django.db import transaction
+from django.template import (Template,Context)
+from django.utils.html import mark_safe
 
 from . import forms
 from .listform import (ToggleableFieldIterator,ListModelFormMetaclass)
 from . import boundfield
 from . import fields
+from .utils import Media
 
 class BaseFormSet(formsets.BaseFormSet):
     check = None
@@ -124,6 +127,109 @@ def formset_factory(form, formset=BaseFormSet, extra=1, can_order=False,
     cls.media = form().media
     return cls
 
+class FormSetMedia(Media):
+    """
+    Provide the media required by the formset
+    """
+    def __init__(self,formcls):
+        self.can_add = formcls.can_add
+        self.can_delete = formcls.can_delete
+        if not formcls.can_add and not formcls.can_delete:
+            super(FormSetMedia,self).__init__(js=None,statements=None)
+            return
+
+        js = ["/static/js/jquery.formset.enhanced.js"]
+
+        statements = []
+        if formcls.can_delete:
+            statements.append("""
+            function delete_{0}(ev,prefix){{
+                var row = $(ev.srcElement).parents('.{0}_fs')
+                var index = null;
+                $.each(row.find("input"),function(i,element){{
+                    if ($(element).prop('name').startsWith(prefix + '-')) {{
+                        index = parseInt($(element).prop('name').substring(prefix.length + 1))
+                        return false
+                    }}
+                }})
+                idElement = $("#id_" + prefix + "-" + index + "-{1}")
+                if (idElement.length && idElement.val()) {{
+                    row.find("#delete").click()
+                    ev.stopPropagation()
+                }}
+            }}
+            """.format(formcls.model_name_lower,formcls.model_primary_key))
+
+        if formcls.can_add:
+            row_template = Template("""
+            {% load pbs_utils %}
+            {% for form in listform.template_forms %}<tr> 
+                {% for field in form.boundfields %}
+                    {% call_method_escape field "html" "<td {attrs}>{widget}</td>" %}
+                {% endfor %}
+            </tr>{% endfor %};
+            """).render(Context({"listform":formcls}))
+        else:
+            row_template = ""
+
+        statements.append("var {}_row_template = `{}`".format(formcls.model_name_lower,row_template))
+    
+        init_formset = None
+        if formcls.can_add and formcls.can_delete:
+            init_formset = """
+            function init_{0}_formset(prefix) {{
+                var quoted_prefix = '"' + prefix + '"'
+                $("#" + prefix + "_result_list > tbody > tr").formset({{
+                    prefix: prefix,
+                    formCssClass: "{0}_fs",
+                    addText: '<i class="icon-plus"></i> Add Another {1}',
+                    deleteText: "<img onclick='delete_{0}(event," + quoted_prefix + ");' src='/static/img/delete.png' style='width:16px;height:16px;'></img>",
+                    deleteCssClass: 'delete-row' + '-' + prefix,
+                    formTemplate:{0}_row_template
+                }})
+            }};
+            """.format(formcls.model_name_lower,formcls.model_verbose_name)
+        elif formcls.can_add:
+            init_formset = """
+            function init_{0}_formset(prefix) {{
+                $("#" + prefix + "_result_list > tbody > tr").formset({{
+                    prefix: prefix,
+                    formCssClass: "{0}_fs",
+                    addText: '<i class="icon-plus"></i> Add Another {1}',
+                    formTemplate:{0}_row_template
+                }})
+            }};
+            """.format(formcls.model_name_lower,formcls.model_verbose_name)
+        elif formcls.can_delete:
+            init_formset = """
+            function init_{0}_formset(prefix) {{
+                var quoted_prefix = '"' + prefix + '"'
+                $("#" + prefix + "_result_list > tbody > tr").formset({{
+                    prefix: prefix,
+                    formCssClass: "{0}_fs",
+                    addText: '',
+                    deleteText: "<img onclick='delete_{0}(event," + quoted_prefix + ");' src='/static/img/delete.png' style='width:16px;height:16px;'></img>",
+                    deleteCssClass: 'delete-row' + '-' + prefix,
+                    formTemplate:{0}_row_template
+                }})
+                $(".{0}_fs-add").hide();
+            }};
+            """.format(formcls.model_name_lower,formcls.model_verbose_name)
+
+        if init_formset:
+            statements.append(init_formset)
+
+        super(FormSetMedia,self).__init__(js=js,statements=statements)
+
+    
+    def init_formset(self,form):
+        return mark_safe("""
+        <script type="text/javascript">
+            var {1}_formset = init_{0}_formset("{1}");
+        </script>
+        """.format(form.model_name_lower,form.prefix))
+    
+
 
 class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,BaseFormSet):
     model_name_lower=None
@@ -133,6 +239,8 @@ class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,
     def __init__(self,*args,**kwargs):
         super(ListUpdateForm,self).__init__(*args,**kwargs)
         self._bound_footerfields_cache = {}
+
+
     @property
     def form_instance(self):
         if len(self) > 0:
@@ -154,6 +262,10 @@ class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,
     @property
     def boundfields(self):
         return boundfield.BoundFieldIterator(self.form_instance)
+
+    @property
+    def init_formset_statements(self):
+        return self.form_media.init_formset(self)
 
     def listfooter(self):
         return self.form_instance.listfooter
@@ -263,12 +375,17 @@ class ListMemberForm(forms.ModelForm,metaclass=ListModelFormMetaclass):
         return boundfield.BoundFieldIterator(self)
 
 template_formset_classes = {}
-def TemplateFormsetFactory(formset):
+def TemplateFormsetFactory(form,formset):
     key = "{}.{}".format(formset.__module__,formset.__name__)
     cls = template_formset_classes.get(key)
     if not cls:
         class_name = "{}.{}_template".format(formset.__module__,formset.__name__)
-        cls = type(class_name,(TemplateFormsetMixin,formset),{})
+        cls = type(class_name,(TemplateFormsetMixin,formset),{"can_add":False,"can_delete":False})
+        form_obj = form()
+        cls.model_name = form_obj.model_name
+        cls.model_name_lower = form_obj.model_name_lower
+        cls.model_verbose_name = form_obj.model_verbose_name
+        cls.model_verbose_name_plural = form_obj.model_verbose_name_plural
         template_formset_classes[key] = cls
     return cls
 
@@ -278,8 +395,13 @@ def listupdateform_factory(form, formset=ListUpdateForm, extra=1, can_order=Fals
 
     cls = formsets.formset_factory(form,formset=formset,extra=extra,can_order=can_order,can_delete=can_delete,max_num=max_num,validate_max=validate_max,min_num=min_num,validate_min=validate_min)
     cls.primary_field = primary_field or form._meta.model._meta.pk.name
-    cls.default_prefix = form._meta.model.__name__.lower()
-    cls.model_name_lower = form._meta.model.__name__.lower()
+    form_obj = form()
+    cls.default_prefix = form_obj.model_name_lower
+    cls.model_name_lower = form_obj.model_name_lower
+    cls.model_name = form_obj.model_name
+    cls.model_verbose_name = form_obj.model_verbose_name
+    cls.model_verbose_name_plural = form_obj.model_verbose_name_plural
+
     cls.media = form().media
     if all_actions:
         cls.all_actions = all_actions
@@ -287,10 +409,14 @@ def listupdateform_factory(form, formset=ListUpdateForm, extra=1, can_order=Fals
         cls.all_buttons = all_buttons
 
     cls.can_add = can_add
+
     if cls.can_add:
-        cls.template_forms = formsets.formset_factory(form,formset=TemplateFormsetFactory(formset),extra=1,min_num=1,max_num=1)(prefix=cls.default_prefix)
+        cls.template_forms = formsets.formset_factory(form,formset=TemplateFormsetFactory(form,formset),extra=1,min_num=1,max_num=1)(prefix=cls.default_prefix)
         for field in cls.template_forms[0].fields.values():
             field.required=False
+
+
+    cls.form_media = FormSetMedia(cls)
 
     return cls
 

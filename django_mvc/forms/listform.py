@@ -243,6 +243,9 @@ class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms
     errors_title = None
     _errors = None
     cleaned_data = {}
+
+    form_media = None
+
     def __init__(self,instance_list=None,check=None,parent_instance=None,**kwargs):
         if check is not None:
             self.check = check

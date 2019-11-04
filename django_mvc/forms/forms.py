@@ -1015,7 +1015,7 @@ class FormInitMixin(object):
             else:
                 _editable_fields.append(name)
 
-            if field.form_declared:
+            if not hasattr(field,"form_declared") or field.form_declared:
                 #this is a form declared field 
                 continue
             elif "__" in name:
@@ -1142,6 +1142,8 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
     created = None
     #contain all the changed data , for debug
     _changed_data = None
+
+    form_media = None
 
     def __init__(self, data=None, files=None, auto_id='id_%s', prefix=None,
                  initial=None, error_class=ErrorList, label_suffix=None,

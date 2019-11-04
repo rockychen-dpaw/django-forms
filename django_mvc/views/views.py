@@ -600,17 +600,16 @@ class HtmlMediaMixin(object):
 
     def add_htmlmedia_context(self,context):
         mediaforms = self.get_mediaforms()
-        if len(mediaforms) == 1:
-            context["htmlmedia"] = mediaforms[0].media
-        else:
-            try:
-                context["htmlmedia"] = self.medias[mediaforms]
-            except:
-                media = Media()
-                for mediaform in mediaforms:
-                    media += mediaform.media
-                self.medias[mediaforms] = media
-                context["htmlmedia"] = media
+        try:
+            context["htmlmedia"] = self.medias[mediaforms]
+        except:
+            media = Media()
+            for mediaform in mediaforms:
+                media += mediaform.media
+                if mediaform.form_media:
+                    media += mediaform.form_media
+            self.medias[mediaforms] = media
+            context["htmlmedia"] = media
 
     def update_context_data(self,context):
         super(HtmlMediaMixin,self).update_context_data(context)

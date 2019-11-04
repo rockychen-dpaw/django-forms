@@ -177,6 +177,10 @@ def is_equal(o1,o2):
 
     if o1 == o2:
         return True
+    elif o1 is None:
+        return False
+    elif o2 is None:
+        return False
     elif isinstance(o1,(list,tuple)) and isinstance(o1,(list,tuple)):
         if len(o1) != len(o2):
             return False
@@ -195,10 +199,6 @@ def is_equal(o1,o2):
                 elif not is_equal(v,o2[k]):
                     return False
             return True
-    elif o1 is None:
-        return False
-    elif o2 is None:
-        return False
     elif o1.__class__ == o2.__class__:
         return False
     else:
