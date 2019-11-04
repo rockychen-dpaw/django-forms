@@ -1213,6 +1213,10 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
         return True if (self.editable_fieldnames or self.editable_formfieldnames or self.editable_formsetfieldnames) else False
 
     @property
+    def form_fields_extended(self):
+        return self._meta.form_fields_extended
+
+    @property
     def editable_fieldnames(self):
         return self._meta._editable_fields
 
@@ -1235,6 +1239,14 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
     @property
     def update_m2m_fields(self):
         return self._meta.update_m2m_fields
+
+    @property
+    def model_name_lower(self):
+        return self._meta.model.__name__.lower()
+
+    @property
+    def model_name(self):
+        return self._meta.model.__name__
 
     @property
     def model_verbose_name(self):
@@ -1412,7 +1424,6 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
                             #for debug
                             self._changed_data[key] = (getattr(self.instance,key).all(), self.cleaned_data.get(key))
                 except Exception as ex:
-                    import ipdb;ipdb.set_trace()
                     traceback.print_exc()
                     raise Exception("Failed to check whether the model field({}.{}.{}) is equal with the post data.{} ".format(self._meta.model.__module__,self._meta.model.__class__.__name__,key,str(ex)))
 
@@ -1772,9 +1783,12 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
 
     def full_clean(self):
         if not self.is_bound or not self.form_fields_extended:
+            #not bound or all form fields are builtin supported by django form, use the builtin full_clean directly
             super(BaseModelForm,self).full_clean()
             return
 
+        #some form fields are not supported by django form.
+        #replace the form fields with only the editable form fields which are supported by django form and then call django form's full_clean to clean the form data
         opt_fields = self._meta.fields
         try:
             self._meta.fields = self.editable_fieldnames
