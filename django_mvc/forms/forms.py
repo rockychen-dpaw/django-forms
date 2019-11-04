@@ -1267,13 +1267,13 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
     def _clean_formfields(self):
         """
         get and validate cleaned value of the form fields, and save them to cleaned_data. have two steps:
-        1. call 'clean_field' on formfield's boundfiled to get the cleaned value, and also the boundfield will call the clean method to validate each field in the form; if validation is failed, add a ValidationError with empty message to indicate the form field is invalid.
+        1. call 'full_clean' on formfield's boundfiled to get the cleaned value, and also the boundfield will call the clean method to validate each field in the form; if validation is failed, add a ValidationError with empty message to indicate the form field is invalid.
         2. call 'clean_[fieldname]' to validate the cleaned form value as a whole if that method exists; if validation is failed, add the ValidationError with proper message to indicate that each form member is valid,but the form as a whole is invalid. 
         """
         for name in self.editable_formfieldnames:
             field = self[name]
             try:
-                value = field.clean_field()
+                value = field.full_clean()
                 self.cleaned_data[name] = value
                 clean_funcname = "clean_{}".format(name)
                 if hasattr(self,clean_funcname):
@@ -1292,13 +1292,13 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
     def _clean_formsetfields(self):
         """
         get and validate cleaned value of the formset fields, and save them to cleaned_data. have two steps:
-        1. call 'clean_field' on formsetfield's boundfiled to get the cleaned value and also the boundfield call the clean method to validate each field in each formset form; if validation is failed, add a ValidationError with empty message to indicate the formset field is invalid.
+        1. call 'full_clean' on formsetfield's boundfiled to get the cleaned value and also the boundfield call the clean method to validate each field in each formset form; if validation is failed, add a ValidationError with empty message to indicate the formset field is invalid.
         2. call 'clean_[fieldname]' to validate the cleaned formset value as a whole if that method exists; if validation is failed, add the ValidationError with proper message to indicate that each formset member is valid,but the formset as a whole is invalid. 
         """
         for name in self.editable_formsetfieldnames:
             field = self[name]
             try:
-                value = field.clean_field()
+                value = field.full_clean()
                 self.cleaned_data[name] = value
                 clean_funcname = "clean_{}".format(name)
                 if hasattr(self,clean_funcname):

@@ -512,7 +512,7 @@ class BoundFormField(BoundField):
     def is_changed(self):
         return self.innerform.is_changed
 
-    def clean_field(self):
+    def full_clean(self):
         if self.innerform.is_valid():
             return self.innerform.cleaned_data
         else:
@@ -574,7 +574,7 @@ class BoundFormSetField(BoundField):
     def is_bound(self):
         return self.form.is_bound and not self.field.is_display
 
-    def clean_field(self):
+    def full_clean(self):
         if self.formset.is_valid():
             return [form.cleaned_data for form in self.formset]
         else:
