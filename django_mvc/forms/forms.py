@@ -2,6 +2,7 @@ from collections import OrderedDict
 import re
 import imp
 import inspect
+import traceback
 from itertools import chain
 
 from django import forms
@@ -43,6 +44,13 @@ class EditableFieldsMixin(object):
     def __init__(self,editable_fields = None,*args,**kwargs):
         self._editable_fieldnames = editable_fields
         super(EditableFieldsMixin,self).__init__(*args,**kwargs)
+
+    @property
+    def form_fields_extended(self):
+        if self._editable_fieldnames is None:
+            return self._meta.form_fields_extended
+        else:
+            return True
 
     @property
     def editable_fieldnames(self):
@@ -280,7 +288,7 @@ class BaseFormMetaclassMixin(object):
     9. editable: True if editable;otherwise False
     10. _extra_update_nonaudit_fields: add extra update non audit fields 
     11. _extra_update_audit_fields: add extra update audit fields
-    12. enhanced_form_fields: True if some form field is not originally supported by django form; otherwise False
+    12. form_fields_extended: True if some form field is not originally supported by django form; otherwise False
 
     Change the following properties into form class
     1.base_fields: always be a empty list to avoid deep clone the fields in form instance.
@@ -987,22 +995,22 @@ class FormInitMixin(object):
         _editable_fields = []
         _editable_formfields = []
         _editable_formsetfields = []
-        enhanced_form_fields = False
+        form_fields_extended = False
         for name,field in cls.all_fields.items():
             if isinstance(field.widget,widgets.DisplayMixin):
-                enhanced_form_fields = True
+                form_fields_extended = True
                 continue
             if isinstance(field,FormField):
                 #it is a form field
                 if not field.is_display:
                     _editable_formfields.append(name)
-                enhanced_form_fields = True
+                form_fields_extended = True
                 continue
             elif isinstance(field,FormSetField):
                 #it is a formset field
                 if not field.is_display:
                     _editable_formsetfields.append(name)
-                enhanced_form_fields = True
+                form_fields_extended = True
                 continue
             else:
                 _editable_fields.append(name)
@@ -1050,7 +1058,7 @@ class FormInitMixin(object):
         setattr(opts,'_editable_fields',_editable_fields)
         setattr(opts,'_editable_formfields',_editable_formfields)
         setattr(opts,'_editable_formsetfields',_editable_formsetfields)
-        setattr(opts,'enhanced_form_fields',enhanced_form_fields)
+        setattr(opts,'form_fields_extended',form_fields_extended)
         setattr(opts,'update_db_fields',update_db_fields)
         setattr(opts,'update_m2m_fields',update_m2m_fields)
         setattr(opts,'update_model_properties',update_model_properties)
@@ -1404,6 +1412,8 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
                             #for debug
                             self._changed_data[key] = (getattr(self.instance,key).all(), self.cleaned_data.get(key))
                 except Exception as ex:
+                    import ipdb;ipdb.set_trace()
+                    traceback.print_exc()
                     raise Exception("Failed to check whether the model field({}.{}.{}) is equal with the post data.{} ".format(self._meta.model.__module__,self._meta.model.__class__.__name__,key,str(ex)))
 
             self.created = False
@@ -1680,7 +1690,7 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
         #first check all the editable fields except formset fields and form fields
         try:
 
-            if self._meta.enhanced_form_fields:
+            if self.form_fields_extended:
                 opt_fields = self._meta.fields
                 self._meta.fields = self.editable_fieldnames
                 #only include the normal editable fields from db model and dynamically added fields
@@ -1725,7 +1735,7 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
                 self.validate_unique()
 
         finally:
-            if self._meta.enhanced_form_fields:
+            if self.form_fields_extended:
                 self._meta.fields = opt_fields
                 self.fields = self.all_fields
 
@@ -1761,7 +1771,7 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
 
 
     def full_clean(self):
-        if not self.is_bound or not self._meta.enhanced_form_fields:
+        if not self.is_bound or not self.form_fields_extended:
             super(BaseModelForm,self).full_clean()
             return
 
