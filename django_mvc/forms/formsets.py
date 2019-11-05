@@ -415,8 +415,11 @@ def listupdateform_factory(form, formset=ListUpdateForm, extra=1, can_order=Fals
         for field in cls.template_forms[0].fields.values():
             field.required=False
 
-
-    cls.form_media = FormSetMedia(cls)
+    
+    if not cls.can_add and not cls.can_delete:
+        cls.form_media = None
+    else:
+        cls.form_media = FormSetMedia(cls)
 
     return cls
 
