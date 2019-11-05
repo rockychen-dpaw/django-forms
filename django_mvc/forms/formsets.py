@@ -161,7 +161,7 @@ class FormSetMedia(Media):
             """.format(formcls.model_name_lower,formcls.model_primary_key))
 
         if formcls.can_add:
-            row_template = Template(formcls.row_template).render(Context({"listform":formcls}))
+            row_template = formcls.row_template.render(Context({"listform":formcls}))
         else:
             row_template = ""
 
@@ -229,14 +229,14 @@ class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,
     model_primary_key = "id"
     _bound_footerfields_cache = None
 
-    row_template = """
+    row_template = Template("""
     {% load pbs_utils %}
     {% for form in listform.template_forms %}<tr> 
         {% for field in form.boundfields %}
             {% call_method_escape field "html" "<td {attrs}>{widget}</td>" %}
         {% endfor %}
     </tr>{% endfor %};
-    """
+    """)
 
     def __init__(self,*args,**kwargs):
         super(ListUpdateForm,self).__init__(*args,**kwargs)
@@ -407,7 +407,7 @@ def listupdateform_factory(form, formset=ListUpdateForm, extra=1, can_order=Fals
     cls.model_verbose_name = form_obj.model_verbose_name
     cls.model_verbose_name_plural = form_obj.model_verbose_name_plural
     if row_template:
-        cls.row_template = row_template
+        cls.row_template = Template(row_template)
 
     cls.media = form.media
     if all_actions:
