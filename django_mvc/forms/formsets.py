@@ -161,14 +161,7 @@ class FormSetMedia(Media):
             """.format(formcls.model_name_lower,formcls.model_primary_key))
 
         if formcls.can_add:
-            row_template = Template("""
-            {% load pbs_utils %}
-            {% for form in listform.template_forms %}<tr> 
-                {% for field in form.boundfields %}
-                    {% call_method_escape field "html" "<td {attrs}>{widget}</td>" %}
-                {% endfor %}
-            </tr>{% endfor %};
-            """).render(Context({"listform":formcls}))
+            row_template = Template(formcls.row_template).render(Context({"listform":formcls}))
         else:
             row_template = ""
 
@@ -236,6 +229,15 @@ class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,
     model_primary_key = "id"
     _bound_footerfields_cache = None
 
+    row_template = """
+    {% load pbs_utils %}
+    {% for form in listform.template_forms %}<tr> 
+        {% for field in form.boundfields %}
+            {% call_method_escape field "html" "<td {attrs}>{widget}</td>" %}
+        {% endfor %}
+    </tr>{% endfor %};
+    """
+
     def __init__(self,*args,**kwargs):
         super(ListUpdateForm,self).__init__(*args,**kwargs)
         self._bound_footerfields_cache = {}
@@ -265,7 +267,10 @@ class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,
 
     @property
     def init_formset_statements(self):
-        return self.form_media.init_formset(self)
+        if self.form_media:
+            return self.form_media.init_formset(self)
+        else:
+            return ""
 
     def listfooter(self):
         return self.form_instance.listfooter
@@ -391,7 +396,7 @@ def TemplateFormsetFactory(form,formset):
 
 def listupdateform_factory(form, formset=ListUpdateForm, extra=1, can_order=False,
                     can_delete=False, max_num=None, validate_max=False,can_add=True,
-                    min_num=None, validate_min=False,primary_field=None,all_actions=None,all_buttons=None):
+                    min_num=None, validate_min=False,primary_field=None,all_actions=None,all_buttons=None,row_template=None):
 
     cls = formsets.formset_factory(form,formset=formset,extra=extra,can_order=can_order,can_delete=can_delete,max_num=max_num,validate_max=validate_max,min_num=min_num,validate_min=validate_min)
     cls.primary_field = primary_field or form._meta.model._meta.pk.name
@@ -401,8 +406,10 @@ def listupdateform_factory(form, formset=ListUpdateForm, extra=1, can_order=Fals
     cls.model_name = form_obj.model_name
     cls.model_verbose_name = form_obj.model_verbose_name
     cls.model_verbose_name_plural = form_obj.model_verbose_name_plural
+    if row_template:
+        cls.row_template = row_template
 
-    cls.media = form().media
+    cls.media = form.media
     if all_actions:
         cls.all_actions = all_actions
     if all_buttons:
@@ -414,12 +421,18 @@ def listupdateform_factory(form, formset=ListUpdateForm, extra=1, can_order=Fals
         cls.template_forms = formsets.formset_factory(form,formset=TemplateFormsetFactory(form,formset),extra=1,min_num=1,max_num=1)(prefix=cls.default_prefix)
         for field in cls.template_forms[0].fields.values():
             field.required=False
-
     
     if not cls.can_add and not cls.can_delete:
         cls.form_media = None
     else:
         cls.form_media = FormSetMedia(cls)
+        if cls.media:
+            media = Media()
+            media += cls.media
+            media += cls.form_media
+            cls.media = media
+        else:
+            cls.media = cls.form_media
 
     return cls
 

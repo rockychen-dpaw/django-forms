@@ -606,8 +606,6 @@ class HtmlMediaMixin(object):
             media = Media()
             for mediaform in mediaforms:
                 media += mediaform.media
-                if mediaform.form_media:
-                    media += mediaform.form_media
             self.medias[mediaforms] = media
             context["htmlmedia"] = media
 
