@@ -13,7 +13,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from urllib.parse import quote
 
 from django_mvc.forms.utils import ChainDict,Media
-from django_mvc.forms.formsets import ListUpdateForm
+from django_mvc.forms.formsets import FormSet
 from django_mvc.forms.forms import RequestUrlMixin
 from django_mvc.forms.listform import ListForm
 from django_mvc.inspectmodel import (ObjectDependencyTree,ModelDependencyTree)
@@ -67,7 +67,7 @@ class ErrorMixin(object):
             form = context.get(key)
             if form is None :
                 continue
-            if isinstance(form,ListUpdateForm):
+            if isinstance(form,FormSet):
                 error_count += self._get_errors(non_field_errors,form.errors)
             elif isinstance(form,ListForm):
                 error_count += self._get_errors(non_field_errors,form.errors)
@@ -1240,7 +1240,7 @@ class ListUpdateView(ListView):
     def post(self,request,*args,**kwargs):
         self.object_list = self.get_queryset()
         self.listform = self.get_listform()
-        if not isinstance(self.listform,ListUpdateForm) or self.listform.is_valid():
+        if not isinstance(self.listform,FormSet) or self.listform.is_valid():
             return self.form_valid()
         else:
             return self.form_invalid()
@@ -1251,7 +1251,7 @@ class ListUpdateView(ListView):
         return self.render_to_response(context)
 
     def form_valid(self):
-        if isinstance(self.listform,ListUpdateForm):
+        if isinstance(self.listform,FormSet):
             self.listform.save()
         return HttpResponseRedirect(self.get_success_url())
 
@@ -1267,20 +1267,20 @@ class OneToManyListUpdateView(OneToManyModelMixin,ListUpdateView):
     def post(self,request,*args,**kwargs):
         self.object_list = self.get_queryset()
         self.listform = self.get_listform()
-        if isinstance(self.listform,ListUpdateForm):
+        if isinstance(self.listform,FormSet):
             if self.listform.is_valid():
                 return self.form_valid()
             else:
                 return self.form_invalid()
         else:
-            raise Exception("The list form class({}.{}) must be a subclass of ListUpdateForm in OneToManyListUpdateView".format(listform_class.__module__,listform_class.__name__))
+            raise Exception("The list form class({}.{}) must be a subclass of FormSet in OneToManyListUpdateView".format(listform_class.__module__,listform_class.__name__))
 
 
     def form_valid(self):
         try:
             if self.atomic_update:
                 with transaction.atomic():
-                    if isinstance(self.listform,ListUpdateForm):
+                    if isinstance(self.listform,FormSet):
                         self.listform.save()
                     if self.pform and self.pform.editable:
                         if self.pform.is_valid():
@@ -1288,7 +1288,7 @@ class OneToManyListUpdateView(OneToManyModelMixin,ListUpdateView):
                         else:
                             raise Exception("Invalid input")
             else:
-                if isinstance(self.listform,ListUpdateForm):
+                if isinstance(self.listform,FormSet):
                     self.listform.save()
                 if self.pform and self.pform.editable:
                     if self.pform.is_valid():

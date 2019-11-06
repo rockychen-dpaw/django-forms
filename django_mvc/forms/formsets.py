@@ -106,7 +106,7 @@ class FormSetMedia(Media):
         </script>
         """.format(form.model_name_lower,form.prefix))
     
-class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,formsets.BaseFormSet):
+class FormSet(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,formsets.BaseFormSet):
     check = None
     _errors = None
     error_title = None
@@ -125,7 +125,7 @@ class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,
         if "prefix" not in kwargs:
             kwargs["prefix"] = self.__class__.default_prefix
         kwargs['initial']=instance_list
-        super(ListUpdateForm,self).__init__(*args,**kwargs)
+        super(FormSet,self).__init__(*args,**kwargs)
         self.instance_list = instance_list
         self.parent_instance = parent_instance
 
@@ -180,7 +180,7 @@ class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,
         return False
 
     def get_form_kwargs(self, index):
-        kwargs = super(ListUpdateForm,self).get_form_kwargs(index)
+        kwargs = super(FormSet,self).get_form_kwargs(index)
         if self.instance_list and index < len(self.instance_list):
             if self.is_bound:
                 kwargs["instance"] = self.get_instance(index)
@@ -256,7 +256,7 @@ class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,
 
     def _should_delete_form(self,form):
         """Return whether or not the form was marked for deletion."""
-        should_delete = super(ListUpdateForm,self)._should_delete_form(form)
+        should_delete = super(FormSet,self)._should_delete_form(form)
         if not should_delete and hasattr(form,"can_delete"):
             should_delete = form.can_delete
         form.cleaned_data[DELETION_FIELD_NAME] = should_delete
@@ -314,9 +314,9 @@ class TemplateFormsetMixin(object):
         return '%s-__prefix__' % (self.prefix)
 
 
-class ListMemberForm(forms.ModelForm,metaclass=ListModelFormMetaclass):
+class FormSetMemberForm(forms.ModelForm,metaclass=ListModelFormMetaclass):
     def __init__(self,parent_instance=None,*args,**kwargs):
-        super(ListMemberForm,self).__init__(*args,**kwargs)
+        super(FormSetMemberForm,self).__init__(*args,**kwargs)
         if parent_instance:
             self.set_parent_instance(parent_instance)
 
@@ -368,7 +368,7 @@ def TemplateFormsetFactory(form,formset):
         template_formset_classes[key] = cls
     return cls
 
-def listupdateform_factory(form, formset=ListUpdateForm, extra=1, can_order=False,
+def formset_factory(form, formset=FormSet, extra=1, can_order=False,
                     can_delete=False, max_num=None, validate_max=False,can_add=True,
                     min_num=None, validate_min=False,primary_field=None,all_actions=None,all_buttons=None,row_template=None,template=None):
 
