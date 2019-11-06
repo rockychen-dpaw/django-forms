@@ -11,122 +11,6 @@ from . import boundfield
 from . import fields
 from .utils import Media
 
-class BaseFormSet(formsets.BaseFormSet):
-    check = None
-    _errors = None
-    error_title = None
-    errors_title = None
-    can_delete = False
-    cleaned_data = {}
-    def __init__(self,parent_instance=None,instance_list=None,check=None,*args,**kwargs):
-        if check is not None:
-            self.check = check
-
-        if "prefix" not in kwargs:
-            kwargs["prefix"] = self.__class__.default_prefix
-        kwargs['initial']=instance_list
-        super(BaseFormSet,self).__init__(*args,**kwargs)
-        self.instance_list = instance_list
-        self.parent_instance = parent_instance
-
-    def _should_delete_form(self,form):
-        return False
-
-    def get_form_kwargs(self, index):
-        kwargs = super(BaseFormSet,self).get_form_kwargs(index)
-        if self.instance_list and index < len(self.instance_list):
-            if self.is_bound:
-                kwargs["instance"] = self.get_instance(index)
-            else:
-                kwargs["instance"] = self.instance_list[index]
-        if self.parent_instance:
-            kwargs["parent_instance"] = self.parent_instance
-        if self.check is not None:
-            kwargs["check"] = self.check
-        return kwargs
-
-    def get_form_field_name(self,index,field_name):
-        prefix = self.add_prefix(index)
-        return '{}-{}'.format(prefix, field_name) 
-
-    def get_instance(self,index):
-        if self.primary_field:
-            name = self.get_form_field_name(index,self.primary_field)
-            value = self.data.get(name)
-            value = self.form.all_fields[self.primary_field].clean(value)
-            if value:
-                for instance in self.instance_list:
-                    if value == getattr(instance,self.primary_field):
-                        return instance
-                raise ObjectDoesNotExist("{}({}) doesn't exist".format(self.form.model_verbose_name,value))
-            else:
-                return None
-        elif index < len(self.instance_list):
-            return self.instance_list[index]
-        else:
-            return None
-
-    def full_check(self):
-        if self._errors is None:
-            self._errors = {}
-            for i in range(0, self.total_form_count()):
-                form = self.forms[i]
-                if not form.instance.pk:
-                    #new instance,ignore
-                    continue
-                if not form.full_check():
-                    self._errors[str(form.instance)] = form.errors
-            try:
-                self.clean()
-            except ValidationError as e:
-                self._non_form_errors = self.error_class(e.error_list)
-                self._errors[NON_FIELD_ERRORS] = self._non_form_errors
-
-        return False if self._errors else True
-
-
-    def full_clean(self):
-        if self._errors is None:
-            if not self.is_bound:
-                self._errors = {}
-                return
-            errors = {}
-            super().full_clean()
-            for i in range(0, self.total_form_count()):
-                form = self.forms[i]
-                if self.is_bound and self.can_delete and self._should_delete_form(form):
-                    #this form was removed by the user,ignore
-                    continue
-                if form.errors:
-                    errors[str(form.instance)] = form.errors
-            if self._non_form_errors:
-                errors[NON_FIELD_ERRORS] = self._non_form_errors
-            self._errors = errors
-        
-
-
-    def _should_delete_form(self,form):
-        """Return whether or not the form was marked for deletion."""
-        should_delete = super(BaseFormSet,self)._should_delete_form(form)
-        if not should_delete and hasattr(form,"can_delete"):
-            should_delete = form.can_delete
-        form.cleaned_data[DELETION_FIELD_NAME] = should_delete
-        return should_delete
-
-class TemplateFormsetMixin(object):
-    def add_prefix(self, index):
-        return '%s-__prefix__' % (self.prefix)
-
-def formset_factory(form, formset=BaseFormSet, extra=1, can_order=False,
-                    can_delete=False, max_num=None, validate_max=False,
-                    min_num=None, validate_min=False,primary_field=None):
-
-    cls = formsets.formset_factory(form,formset=formset,extra=extra,can_order=can_order,can_delete=can_delete,max_num=max_num,validate_max=validate_max,min_num=min_num,validate_min=validate_min)
-    cls.primary_field = primary_field or form._meta.model._meta.pk.name
-    cls.default_prefix = form._meta.model.__name__.lower()
-    cls.media = form().media
-    return cls
-
 class FormSetMedia(Media):
     """
     Provide the media required by the formset
@@ -222,26 +106,30 @@ class FormSetMedia(Media):
         </script>
         """.format(form.model_name_lower,form.prefix))
     
+class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,formsets.BaseFormSet):
+    check = None
+    _errors = None
+    error_title = None
+    errors_title = None
+    can_delete = False
+    cleaned_data = {}
 
-
-class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,BaseFormSet):
     model_name_lower=None
     model_primary_key = "id"
     _bound_footerfields_cache = None
 
-    row_template = Template("""
-    {% load pbs_utils %}
-    {% for form in listform.template_forms %}<tr> 
-        {% for field in form.boundfields %}
-            {% call_method_escape field "html" "<td {attrs}>{widget}</td>" %}
-        {% endfor %}
-    </tr>{% endfor %};
-    """)
+    def __init__(self,parent_instance=None,instance_list=None,check=None,*args,**kwargs):
+        if check is not None:
+            self.check = check
 
-    def __init__(self,*args,**kwargs):
+        if "prefix" not in kwargs:
+            kwargs["prefix"] = self.__class__.default_prefix
+        kwargs['initial']=instance_list
         super(ListUpdateForm,self).__init__(*args,**kwargs)
-        self._bound_footerfields_cache = {}
+        self.instance_list = instance_list
+        self.parent_instance = parent_instance
 
+        self._bound_footerfields_cache = {}
 
     @property
     def form_instance(self):
@@ -272,12 +160,110 @@ class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,
         else:
             return ""
 
-    def listfooter(self):
-        return self.form_instance.listfooter
-
     @property
     def haslistfooter(self):
         return True if self.form_instance.listfooter else False
+
+    @property
+    def boundfieldlength(self):
+        return len(self.form_instance._meta.ordered_fields)
+
+    @property
+    def use_required_attribute(self):
+        return False
+
+    @property
+    def renderer(self):
+        return None
+
+    def _should_delete_form(self,form):
+        return False
+
+    def get_form_kwargs(self, index):
+        kwargs = super(ListUpdateForm,self).get_form_kwargs(index)
+        if self.instance_list and index < len(self.instance_list):
+            if self.is_bound:
+                kwargs["instance"] = self.get_instance(index)
+            else:
+                kwargs["instance"] = self.instance_list[index]
+        if self.parent_instance:
+            kwargs["parent_instance"] = self.parent_instance
+        if self.check is not None:
+            kwargs["check"] = self.check
+        kwargs["request"] = self.request
+        kwargs["requesturl"] = self.requesturl
+        return kwargs
+
+    def get_form_field_name(self,index,field_name):
+        prefix = self.add_prefix(index)
+        return '{}-{}'.format(prefix, field_name) 
+
+    def get_instance(self,index):
+        if self.primary_field:
+            name = self.get_form_field_name(index,self.primary_field)
+            value = self.data.get(name)
+            value = self.form.all_fields[self.primary_field].clean(value)
+            if value:
+                for instance in self.instance_list:
+                    if value == getattr(instance,self.primary_field):
+                        return instance
+                raise ObjectDoesNotExist("{}({}) doesn't exist".format(self.form.model_verbose_name,value))
+            else:
+                return None
+        elif index < len(self.instance_list):
+            return self.instance_list[index]
+        else:
+            return None
+
+    def full_check(self):
+        if self._errors is None:
+            self._errors = {}
+            for i in range(0, self.total_form_count()):
+                form = self.forms[i]
+                if not form.instance.pk:
+                    #new instance,ignore
+                    continue
+                if not form.full_check():
+                    self._errors[str(form.instance)] = form.errors
+            try:
+                self.clean()
+            except ValidationError as e:
+                self._non_form_errors = self.error_class(e.error_list)
+                self._errors[NON_FIELD_ERRORS] = self._non_form_errors
+
+        return False if self._errors else True
+
+
+    def full_clean(self):
+        if self._errors is None:
+            if not self.is_bound:
+                self._errors = {}
+                return
+            errors = {}
+            super().full_clean()
+            for i in range(0, self.total_form_count()):
+                form = self.forms[i]
+                if self.is_bound and self.can_delete and self._should_delete_form(form):
+                    #this form was removed by the user,ignore
+                    continue
+                if form.errors:
+                    errors[str(form.instance)] = form.errors
+            if self._non_form_errors:
+                errors[NON_FIELD_ERRORS] = self._non_form_errors
+            self._errors = errors
+        
+
+
+    def _should_delete_form(self,form):
+        """Return whether or not the form was marked for deletion."""
+        should_delete = super(ListUpdateForm,self)._should_delete_form(form)
+        if not should_delete and hasattr(form,"can_delete"):
+            should_delete = form.can_delete
+        form.cleaned_data[DELETION_FIELD_NAME] = should_delete
+        return should_delete
+
+    def listfooter(self):
+        return self.form_instance.listfooter
 
     def footerfield(self,name):
         if self._bound_footerfields_cache is None:
@@ -307,26 +293,8 @@ class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,
 
         return bound_field.as_widget()
 
-    @property
-    def boundfieldlength(self):
-        return len(self.form_instance._meta.ordered_fields)
-
     def add_initial_prefix(self,name):
         return ""
-
-    @property
-    def use_required_attribute(self):
-        return False
-
-    @property
-    def renderer(self):
-        return None
-
-    def get_form_kwargs(self, index):
-        kwargs = super(ListUpdateForm,self).get_form_kwargs(index)
-        kwargs["request"] = self.request
-        kwargs["requesturl"] = self.requesturl
-        return kwargs
 
     def save(self):
         if not self.is_bound:  # Stop further processing.
@@ -339,6 +307,12 @@ class ListUpdateForm(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,
                         form.instance.delete()
                     continue
                 form.save()
+
+
+class TemplateFormsetMixin(object):
+    def add_prefix(self, index):
+        return '%s-__prefix__' % (self.prefix)
+
 
 class ListMemberForm(forms.ModelForm,metaclass=ListModelFormMetaclass):
     def __init__(self,parent_instance=None,*args,**kwargs):
@@ -396,18 +370,71 @@ def TemplateFormsetFactory(form,formset):
 
 def listupdateform_factory(form, formset=ListUpdateForm, extra=1, can_order=False,
                     can_delete=False, max_num=None, validate_max=False,can_add=True,
-                    min_num=None, validate_min=False,primary_field=None,all_actions=None,all_buttons=None,row_template=None):
+                    min_num=None, validate_min=False,primary_field=None,all_actions=None,all_buttons=None,row_template=None,template=None):
 
     cls = formsets.formset_factory(form,formset=formset,extra=extra,can_order=can_order,can_delete=can_delete,max_num=max_num,validate_max=validate_max,min_num=min_num,validate_min=validate_min)
     cls.primary_field = primary_field or form._meta.model._meta.pk.name
+    cls.default_prefix = form._meta.model.__name__.lower()
     form_obj = form()
     cls.default_prefix = form_obj.model_name_lower
     cls.model_name_lower = form_obj.model_name_lower
     cls.model_name = form_obj.model_name
     cls.model_verbose_name = form_obj.model_verbose_name
     cls.model_verbose_name_plural = form_obj.model_verbose_name_plural
-    if row_template:
-        cls.row_template = Template(row_template)
+
+    if not template:
+        template = """
+        {{% load pbs_utils %}}
+        <table id="{0}_result_list" class="table table-striped table-condensed table-hober table-fixed-header">
+            <thead>
+                <tr>
+                    {{% for field in listform.boundfields %}}
+                    {{% call_method field "html_header" "<th {{attrs}}><div class='text'>{{label}}</div></th>"%}}
+                    {{% endfor %}}
+                </tr>
+            </thead>
+            <tbody>
+                {{% for form in listform %}}
+                <tr> 
+                    {{% for field in form.boundfields %}}
+                        {{% call_method field "html" "<td {{attrs}}>{{widget}}</td>"%}}
+                    {{% endfor %}}
+                </tr>
+                {{% endfor %}}
+    
+            </tbody>
+            {{% if listform.haslistfooter %}}
+            <tfoot>
+                {{% for row in listform.listfooter %}}
+                <tr> 
+                    {{% for column in row %}}
+                    <th {{% if column.1 == 0 %}} style="display:none" {{% elif column.1 > 1 %}}colspan={{{{column.1}}}} {{% endif %}}>
+                        {{% if column.0 %}}
+                        {{% call_method listform "footerfield" column.0 %}}
+                        {{% else %}}
+                        &nbsp;
+                        {{% endif %}}
+                    </th>
+                    {{% endfor %}}
+                </tr>
+                {{% endfor %}}
+    
+            </tfoot>
+            {{% endif %}}
+        </table>
+        """.format(cls.model_name_lower)
+    cls.template = Template(template)
+
+    if not row_template:
+        row_template = """
+        {% load pbs_utils %}
+        {% for form in listform.template_forms %}<tr> 
+            {% for field in form.boundfields %}
+                {% call_method_escape field "html" "<td {attrs}>{widget}</td>" %}
+            {% endfor %}
+        </tr>{% endfor %};
+        """
+    cls.row_template = Template(row_template)
 
     cls.media = form.media
     if all_actions:

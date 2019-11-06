@@ -618,7 +618,7 @@ class BoundFormSetField(BoundField):
                 form.save(savemessage=False)
 
     def as_widget(self, widget=None, attrs=None, only_initial=False):
-        return "{}{}".format(str(self.formset.management_form),self.field.template.render({"formset":self.formset,"errors":self.form.errors.get(self.name)}))
+        return self.field.widget.render(self.name,self.formset,self.form.errors.get(self.name))
 
     def __iter__(self):
         return self.formset

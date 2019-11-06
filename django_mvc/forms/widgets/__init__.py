@@ -6,7 +6,8 @@ from .widgets import (DisplayWidget,DisplayMixin,TextDisplay,FinancialYearDispla
         NullBooleanSelect,AjaxWidgetFactory,HiddenInput,
         FloatDisplay,IntegerDisplay,ObjectDisplay,
         FilteredSelect,FilesizeDisplay,
-        DataPreparationMixin)
+        DataPreparationMixin,
+        FormSetWidget,FormSetDisplayWidget)
 
 from .adminwidgets import (FilteredSelectMultiple,)
 

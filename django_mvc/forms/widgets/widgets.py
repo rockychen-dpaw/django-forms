@@ -1167,9 +1167,36 @@ class FilteredSelect(ChoiceFilterMixin,forms.Select):
     pass
 
 
+class FormSetWidget(forms.Widget):
+
+    def __init__(self,field):
+        self.field = field
+        self.widget = self.field.widget
+
+    def __deepcopy__(self, memo):
+        return self
+
+    def render(self,name,formset,errors=None,attrs=None,renderer=None):
+        return "{}{}".format(str(formset.management_form),formset.template.render(Context({"listform":formset,"errors":errors or []})))
+
+
+class FormSetDisplayWidget(DisplayMixin,forms.Widget):
+
+    def __init__(self,field):
+        self.field = field
+        self.widget = self.field.widget
+
+    def __deepcopy__(self, memo):
+        return self
+
+    def render(self,name,formset,errors=None,attrs=None,renderer=None):
+        return formset.template.render(Context({"listform":formset}))
+
+
+
 
 @receiver(formsetfields_inited)
-def init_actions(sender,**kwargs):
+def init_widgets(sender,**kwargs):
     for key,cls in widget_classes.items():
         #print("{}={}".format(key,cls))
         if hasattr(cls,"__init_class"):

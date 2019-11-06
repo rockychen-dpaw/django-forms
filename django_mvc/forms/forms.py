@@ -997,6 +997,11 @@ class FormInitMixin(object):
         _editable_formsetfields = []
         form_fields_extended = False
         for name,field in cls.all_fields.items():
+            if isinstance(field,FormSetField):
+                #set the correct widget for FormSetField
+                field.widget = widgets.FormSetDisplayWidget(field) if field.is_display else widgets.FormSetWidget(field)
+                pass
+
             if isinstance(field.widget,widgets.DisplayMixin):
                 form_fields_extended = True
                 continue
