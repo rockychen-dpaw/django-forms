@@ -10,4 +10,5 @@ from .fields import (HtmlStringField,CompoundField,SwitchFieldFactory,OtherOptio
 
 from .formfields import (FormField,FormFieldFactory)
 from .formsetfields import (FormSetField,FormSetFieldFactory)
+from .listformfields import (ListFormField,ListFormFieldFactory)
 from .aggregatefields import (AggregateField,FloatSummary,)

@@ -26,15 +26,37 @@ from .fields import (CompoundField,FormField,FormSetField,AliasFieldMixin)
 
 from .utils import FieldClassConfigDict,FieldWidgetConfigDict,FieldLabelConfigDict,SubpropertyEnabledDict,ChainDict,Media,NoneValueKey
 from ..models import DictMixin,AuditMixin,ModelDictWrapper
-from django_mvc.signals import widgets_inited,system_ready
+from django_mvc.signals import widgets_inited,forms_inited
 from django_mvc.utils import load_module,is_equal
 
 
-def create_boundfield(self,form,field,name):
+class FormTemplateMixin(object):
+    """
+    Provide a template to show form, 
+    The following context parameters are provided
+        form: the form object.
+
+    """
+    template = None
+
+    @classmethod
+    def init_template(cls):
+        if not cls.template:
+            raise Exception("Please set the template property in class '{}.{}'".format(cls.__module__,cls.__name__))
+
+        cls.template = Template(cls.template)
+
+def create_boundfield(self,form,field,name,is_listform=False):
     """
     This method will be assigned to form class as instance method to create bound field
     """
-    return self.boundfield_class(form,field,name)
+    from .listform import ListForm
+    from .formsets import FormSet
+
+    if is_listform:
+        return self.listboundfield_class(form,field,name)
+    else:
+        return self.boundfield_class(form,field,name)
     
 
 class EditableFieldsMixin(object):
@@ -302,6 +324,7 @@ class BaseFormMetaclassMixin(object):
     Add the follwing properties to all form field instance if required
     1. create_boundfield: a class method to create a bound field instance for this form field
     2. boundfield_class: a class property, set to a default class ''BoundField' if not present in field class,
+    3. listboundfield_class: a class property, set to a default class ''ListBoundField' if not present in field class,
 
     """
  
@@ -639,8 +662,8 @@ class BaseFormMetaclassMixin(object):
 
             if field_widget:
                 kwargs['widget'] = field_widget
-            elif not db_field:
-                raise Exception("Please configure widget for property '{}.{}' in 'widgets_config' option".format(name,field_name))
+            #elif not db_field:
+            #    raise Exception("Please configure widget for property '{}.{}' in 'widgets_config' option".format(name,field_name))
 
             if innerest_model and innerest_model_opts:
                 kwargs['localize'] = innerest_model_opts.localized_fields == forms.models.ALL_FIELDS or (innerest_model_opts.localized_fields and innerest_model_dbfield_name in innerest_model_opts.localized_fields)
@@ -719,6 +742,8 @@ class BaseFormMetaclassMixin(object):
             #set the boundfield class if not set by field
             if not hasattr(formfield,"boundfield_class") or not getattr(formfield,"boundfield_class"):
                 formfield.boundfield_class = boundfield.BoundField
+            if not hasattr(formfield,"listboundfield_class") or not getattr(formfield,"listboundfield_class"):
+                formfield.listboundfield_class = boundfield.ListBoundField
             #create a instance method to create boundfild
             formfield.__class__.create_boundfield = create_boundfield
 
@@ -790,8 +815,8 @@ class BaseFormMetaclassMixin(object):
     
                 if field_widget:
                     kwargs['widget'] = field_widget
-                else:
-                    raise Exception("Please configure widget for footer field '{}.{}' in 'widgets_config' option".format(name,field_name))
+                #else:
+                #    raise Exception("Please configure widget for footer field '{}.{}' in 'widgets_config' option".format(name,field_name))
     
                 kwargs['localize'] = False
     
@@ -806,6 +831,8 @@ class BaseFormMetaclassMixin(object):
                 #set the boundfield class if not set by field
                 if not hasattr(formfield,"boundfield_class") or not getattr(formfield,"boundfield_class"):
                     formfield.boundfield_class = BoundField
+                if not hasattr(formfield,"listboundfield_class") or not getattr(formfield,"listboundfield_class"):
+                    formfield.listboundfield_class = ListBoundField
                 #create a instance method to create boundfild
                 formfield.__class__.create_boundfield = create_boundfield
 
@@ -1203,6 +1230,10 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
 
         if parent_instance:
             self.set_parent_instance(parent_instance)
+
+    def set_data(self,data):
+        self.instance = data
+        self.initial = self.model_to_dict(data)
 
     def set_parent_instance(self,parent_instace):
         """
@@ -1827,10 +1858,16 @@ class ModelForm(ActionMixin,RequestUrlMixin,BaseModelForm):
     pass
 
 @receiver(widgets_inited)
-def init_actions(sender,**kwargs):
+def init_forms(sender,**kwargs):
     for cls in _formclasses:
         cls.post_init()
-    system_ready.send(sender="forms")
+
+    #init the template, if required
+    for cls in _formclasses:
+        if issubclass(cls,FormTemplateMixin):
+            cls.init_template()
+
+    forms_inited.send(sender="forms")
 
 
 

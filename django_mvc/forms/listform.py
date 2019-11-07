@@ -7,11 +7,14 @@ from django.utils.translation import ugettext_lazy as _
 from django.forms.renderers import get_default_renderer
 from django.utils.html import mark_safe
 from django.forms.utils import ErrorList,ErrorDict
+from django.template import (Template,Context)
+from django.dispatch import receiver
 
 from . import forms
 from . import boundfield
 from . import fields
 from .utils import SubpropertyEnabledDict
+from django_mvc.signals import forms_inited,listforms_inited,system_ready
 from django_mvc.models import DictMixin,ModelDictWrapper
 
 
@@ -213,6 +216,9 @@ class ListModelFormMetaclass(forms.BaseModelFormMetaclass,collections.Iterable._
             else:
                 setattr(new_class,"model_to_dict",_model_to_dict)
 
+        #figure out the fields which are required to call set_data when the cursor is moved.
+
+
         return new_class
 
 class ToggleableFieldIterator(collections.Iterable):
@@ -233,6 +239,122 @@ class ToggleableFieldIterator(collections.Iterable):
             raise StopIteration()
 
 
+class InnerListFormTableTemplateMixin(forms.FormTemplateMixin):
+    """
+    Provide a template to show list form 
+    introduce the following meta properties:
+        table_header : show column header if true; otherwise hide column header
+            listform: the listform object which contains a list of model instance.
+        table_styles: a dict contains css for html element; available css keys are listed
+            "table","thead","thead-tr","thead-th","thead-td","tbody","tbody-tr","tbody-td","tbody-th","title"
+        table_title: the table title
+            
+    """
+    @classmethod
+    def init_template(cls):
+        header = getattr(cls.Meta,"table_header",False)
+        styles = getattr(cls.Meta,"table_styles",{})
+        title = getattr(cls.Meta,"table_title",None)
+        form = cls()
+
+        for key in ("table","thead","thead-tr","thead-th","thead-td","tbody","tbody-tr","tbody-td","tbody-th","title"):
+            if key not in styles:
+                styles["{}_style".format(key)] = ""
+            else:
+                if key in ["thead-th","tbody-td","tbody-th","thead-td"]:
+                    styles["{}_style".format(key)] = styles[key]
+                else:
+                    styles["{}_style".format(key)] = "style='{}'".format(styles[key])
+                del styles[key]
+    
+        if title:
+            table_title = "<caption {1}>{0}</caption>".format(title,styles["title_style"])
+        else:
+            table_title = ""
+
+        table_header = ""
+        if header:
+            table_header = Template("""
+            <thead {{thead_style}}>
+              <tr {{tr_style}}>
+                  {% for header in headers %}
+                  {{header}}
+                  {% endfor %}
+              </tr>
+            </thead>
+            """).render(Context({
+                "headers":[field.html_header("<th {attrs}><div class=\"text\"> {label}</div></th>",styles["thead-th_style"]) for field in form.boundfields],
+                "thead_style":styles["thead_style"],
+                "tr_style":styles["thead-tr_style"],
+            }))
+        else:
+            table_header = Template("""
+            <thead {{thead_style}}>
+              <tr {{tr_style}}>
+                  {% for header in headers %}
+                  {{header}}
+                  {% endfor %}
+              </tr>
+            </thead>
+            """).render(Context({
+                "headers":[field.html_header("<th {attrs}><div class=\"text\"> </div></th>",styles["thead-th_style"]) for field in form.boundfields],
+                "thead_style":styles["thead_style"],
+                "tr_style":styles["thead-tr_style"],
+            }))
+        template = """
+        {{% load pbs_utils %}}
+        <table {table_style}>
+            {title}
+            {header}
+         <tbody {tbody_style}>
+            {{% for dataform in form %}}
+            <tr {tbody-tr_style}>
+                {{% for field in dataform %}}
+                    {{% call_method field "html" "<td {{attrs}}>{{widget}}</td>" "{tbody-td_style}"%}}
+                {{% endfor %}}
+            </tr>
+            {{% endfor %}}
+            </tr>
+          </tbody>
+        </table>
+        """.format(header = table_header,title=table_title,**styles)
+    
+        cls.template = Template(template)
+    
+
+class InnerListFormULTemplateMixin(forms.FormTemplateMixin):
+    """
+    Provide a template to show list form 
+    introduce the following meta properties:
+        ul_styles: a dict contains css for html element; available css keys are listed
+            "ul","li"
+            
+    """
+    @classmethod
+    def init_template(cls):
+        styles = getattr(cls.Meta,"ul_styles",{})
+        form = cls()
+
+        for key in ("ul","li"):
+            if key not in styles:
+                styles["{}_style".format(key)] = ""
+            else:
+                styles["{}_style".format(key)] = styles[key]
+                del styles[key]
+
+        template = """
+        {{% load pbs_utils %}}
+        <ul style="list-style-type:square;{ul_style}">
+        {{% for dataform in form %}}
+            {{% for field in dataform %}}
+                {{% call_method field "html" "<li {{attrs}}>{{widget}}</li>" "{li_style}" %}}
+            {{% endfor %}}
+        {{% endfor %}}
+        </ul>
+        """.format(**styles)
+
+        cls.template = Template(template)
+    
 class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms.ModelFormMetaMixin,django_mvc.BaseForm,collections.Iterable,metaclass=ListModelFormMetaclass):
     """
     Use a form to display list data 
@@ -253,7 +375,7 @@ class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms
 
         self.instance_list = instance_list
         #set index to one position before the start position. because we need to call next() before getting the first data 
-        self.index = None
+        self.index = -1
         self.parent_instance = parent_instance
         self.dataform = self._meta.listdataform(self)
         if self._meta.subproperty_enabled:
@@ -350,6 +472,13 @@ class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms
     def errors(self):
         return self._errors
 
+    @classmethod
+    def init_template(cls):
+        pass
+
+    def set_data(self,data):
+        self.index = -1;
+        self.instance_list = data
 
     def full_check(self):
         self._errors = ErrorDict()
@@ -374,7 +503,7 @@ class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms
         self.index = -1
         return self
 
-    def __next__(self):
+    def __next1__(self):
         self.index += 1
         if self.instance_list:
             if self.index < len(self.instance_list):
@@ -383,6 +512,14 @@ class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms
                 raise StopIteration()
         else:
             raise StopIteration()
+
+    def __next2__(self):
+        try:
+            return self.__next1__()
+        finally:
+            for f in self._set_data_fields:
+                self[f].set_data()
+
 
     def get_initial_for_field(self, field, field_name):
         """
@@ -416,24 +553,33 @@ class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms
                     )
                 )
         if name not in self._bound_fields_cache:
-            if name == "loginuser":
-                self._bound_fields_cache[name] = boundfield.LoginUserListBoundField(self,field,name)
-            elif isinstance(field,fields.CompoundField):
-                if field.field_name == 'loginuser':
-                    self._bound_fields_cache[name] = boundfield.LoginUserCompoundListBoundField(self,field,name)
-                else:
-                    self._bound_fields_cache[name] = boundfield.CompoundListBoundField(self,field,name)
-            elif isinstance(field,fields.AggregateField):
-                self._bound_fields_cache[name] = boundfield.AggregateBoundField(self,field,name)
-            elif isinstance(field,fields.HtmlStringField):
-                self._bound_fields_cache[name] = boundfield.HtmlStringBoundField(self,field,name)
-            else:
-                self._bound_fields_cache[name] = boundfield.ListBoundField(self,field,name)
+            self._bound_fields_cache[name] = field.create_boundfield(self,field,name,True)
+
         return self._bound_fields_cache[name]
 
     def as_table(self):
         raise NotImplementedError()
 
+@receiver(forms_inited)
+def init_listforms(sender,**kwargs):
+    for cls in forms._formclasses:
+        if not issubclass(cls,ListForm):
+            continue
 
-            
+        #find all fields which are required to call 'set_data' method to set the boundfield's data when listform's cursor is moved.
+        fields = []
+        for name,field in cls.total_fields.items():
+            if hasattr(field.listboundfield_class,"set_data"):
+                fields.append(name)
+
+        #set __next__ to the suitable method
+        if fields:
+            cls._set_data_fields = fields
+            cls.__next__ = cls.__next2__
+        else:
+            cls.__next__ = cls.__next1__
+
+    listforms_inited.send(sender="listforms")
+
+
 

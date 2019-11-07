@@ -1,5 +1,4 @@
 from django import forms
-from django.template import engines
 from django.dispatch import receiver
 
 from .. import widgets
@@ -11,21 +10,20 @@ from django_mvc.signals import formfields_inited,formsetfields_inited
 from django_mvc.utils import get_class
 
 class FormSetField(forms.Field):
+    widget = widgets.TextDisplay()
+
     _formset_class = None
     _formset_class_name = None
     _is_display = True
 
-    boundfield_class = boundfield.BoundFormSetField
+    boundfield_class = boundfield.FormSetBoundField
+    listboundfield_class = boundfield.FormSetListBoundField
 
     def __init__(self, *args,**kwargs):
         kwargs["widget"] = widgets.TextDisplay()
         kwargs["initial"] = None
         initial = None
         super(FormSetField,self).__init__(*args,**kwargs)
-
-    @property
-    def template(self):
-        return self._template
 
     @property
     def formset_class(self):
@@ -59,7 +57,7 @@ def FormSetFieldFactory(formset_class_name):
 
 
 @receiver(formfields_inited)
-def init_fields(sender,**kwargs):
+def init_formsetfields(sender,**kwargs):
     for key,cls in field_classes.items():
         if key.startswith("FormSetField<"):
             cls._formset_class = get_class(cls._formset_class_name)

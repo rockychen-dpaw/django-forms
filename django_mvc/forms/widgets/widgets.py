@@ -14,7 +14,7 @@ from django.dispatch import receiver
 from django.template.defaultfilters import filesizeformat
 
 from ..utils import hashvalue,JSONEncoder,Media
-from django_mvc.signals import formsetfields_inited, widgets_inited
+from django_mvc.signals import listformfields_inited, widgets_inited
 from django_mvc.utils import get_class
 
 
@@ -968,149 +968,6 @@ def ListDisplayFactory(widget,template=None):
         widget_classes[key] = cls
     return cls
 
-class ModelListDisplay(DataPreparationMixin,DisplayWidget):
-    """
-    A widget to display a model list through a listform class
-    """
-    template=None
-    listform_class=None
-
-    def prepare_initial_data(self,form,name):
-        value = form.initial.get(name)
-        if isinstance(value,models.manager.Manager):
-            value = value.all()
-        return (value,form)
-    def render(self,name,value,attrs=None,renderer=None):
-        if value[0]:
-            return mark_safe(self.template.render(Context({"listform":self.listform_class(request=value[1].request,requesturl=value[1].requesturl,instance_list = value[0])})))
-        else:
-            return ""
-
-
-def ModelListDisplayFactory(listform_class_name,**kwargs):
-    """
-    A factory to generate a ModelListDisplay widget class
-    listform_class_name: the name of the listform, including the mdoule name
-    widget: can be widget class or widget instance
-    kwargs:
-        header : show column header if true; otherwise hide column header
-        use_table: use table to display data if true;otherwise use ul
-        template: the template to display the model list , the following parameters are provided
-            listform: the listform object which contains a list of model instance.
-        styles: a dict contains css for html element; available css keys are listed
-            table:  "table","thead","thead-tr","thead-th","thead-td","tbody","tbody-tr","tbody-td","tbody-th","title"
-            ul : "ul","li"
-            
-    """
-    global widget_class_id
-
-    def initialize(**kwargs):
-        header = kwargs.get("header",False)
-        styles = kwargs.get("styles",{})
-        use_table = kwargs.get("use_table",None)
-        title = kwargs.get("title",None)
-        _template = kwargs.get("template",None)
-        _listform_class_name = listform_class_name
-        def _initialize(cls):
-            listform_class = get_class(_listform_class_name)
-            form = listform_class()
-            if _template:
-                template = _template
-            elif use_table or header or len(listform_class._meta.ordered_fields) > 1:
-                for key in ("table","thead","thead-tr","thead-th","thead-td","tbody","tbody-tr","tbody-td","tbody-th","title"):
-                    if key not in styles:
-                        styles["{}_style".format(key)] = ""
-                    else:
-                        if key in ["thead-th","tbody-td","tbody-th","thead-td"]:
-                            styles["{}_style".format(key)] = styles[key]
-                        else:
-                            styles["{}_style".format(key)] = "style='{}'".format(styles[key])
-                        del styles[key]
-    
-                if title:
-                    table_title = "<caption {1}>{0}</caption>".format(title,styles["title_style"])
-                else:
-                    table_title = ""
-                table_header = ""
-                if header:
-                    table_header = Template("""
-                    <thead {{thead_style}}>
-                      <tr {{tr_style}}>
-                          {% for header in headers %}
-                          {{header}}
-                          {% endfor %}
-                      </tr>
-                    </thead>
-                    """).render(Context({
-                        "headers":[field.html_header("<th {attrs}><div class=\"text\"> {label}</div></th>",styles["thead-th_style"]) for field in form.boundfields],
-                        "thead_style":styles["thead_style"],
-                        "tr_style":styles["thead-tr_style"],
-                    }))
-                else:
-                    table_header = Template("""
-                    <thead {{thead_style}}>
-                      <tr {{tr_style}}>
-                          {% for header in headers %}
-                          {{header}}
-                          {% endfor %}
-                      </tr>
-                    </thead>
-                    """).render(Context({
-                        "headers":[field.html_header("<th {attrs}><div class=\"text\"> </div></th>",styles["thead-th_style"]) for field in form.boundfields],
-                        "thead_style":styles["thead_style"],
-                        "tr_style":styles["thead-tr_style"],
-                    }))
-                template = """
-                {{% load pbs_utils %}}
-                <table {table_style}>
-                    {title}
-                    {header}
-                  <tbody {tbody_style}>
-                    {{% for dataform in listform %}}
-                    <tr {tbody-tr_style}>
-                        {{% for field in dataform %}}
-                            {{% call_method field "html" "<td {{attrs}}>{{widget}}</td>" "{tbody-td_style}"%}}
-                        {{% endfor %}}
-                    </tr>
-                    {{% endfor %}}
-                    </tr>
-                  </tbody>
-                </table>
-                """.format(header = table_header,title=table_title,**styles)
-            else:
-                for key in ("ul","li"):
-                    if key not in styles:
-                        styles["{}_style".format(key)] = ""
-                    else:
-                        styles["{}_style".format(key)] = styles[key]
-                        del styles[key]
-    
-                template = """
-                {{% load pbs_utils %}}
-                <ul style="list-style-type:square;{ul_style}">
-                {{% for dataform in listform %}}
-                    {{% for field in dataform %}}
-                        {{% call_method field "html" "<li {{attrs}}>{{widget}}</li>" "{li_style}" %}}
-                    {{% endfor %}}
-                {{% endfor %}}
-                </ul>
-                """.format(**styles)
-
-            cls.listform_class = listform_class
-            cls.template = Template(template)
-        return _initialize
-
-    template = kwargs.get("template",None)
-    key = "ModelListDisplay<{}>".format(hashvalue("ModelListDisplay<{}{}>".format(listform_class_name,template if template else "")))
-    #print("{}={}".format(listform_class_name,key))
-    cls = widget_classes.get(key)
-    if not cls:
-        widget_class_id += 1
-        class_name = "{}List_{}".format(listform_class_name.rsplit(".")[1],widget_class_id)
-        cls = type(class_name,(ModelListDisplay,),{"__init_class":classmethod(initialize(**kwargs))})
-        widget_classes[key] = cls
-    return cls
-
 class ChoiceFilterMixin(object):
     """
     A mixin to implement a Choice widget with a filter function.
@@ -1190,12 +1047,22 @@ class FormSetDisplayWidget(DisplayMixin,forms.Widget):
         return self
 
     def render(self,name,formset,errors=None,attrs=None,renderer=None):
-        return formset.template.render(Context({"listform":formset}))
+        return formset.template.render(Context({"formset":formset}))
 
 
+class ListFormWidget(DisplayMixin,forms.Widget):
+    def __init__(self,field):
+        self.field = field
+        self.widget = self.field.widget
+
+    def __deepcopy__(self, memo):
+        return self
+
+    def render(self,name,listform,errors=None,attrs=None,renderer=None):
+        return listform.template.render(Context({"form":listform}))
 
 
-@receiver(formsetfields_inited)
+@receiver(listformfields_inited)
 def init_widgets(sender,**kwargs):
     for key,cls in widget_classes.items():
         #print("{}={}".format(key,cls))

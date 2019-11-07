@@ -44,6 +44,7 @@ class ObjectField(forms.Field):
 
 class LoginUserField(ObjectField):
     boundfield_class = boundfield.LoginUserBoundField
+    listboundfield_class = boundfield.LoginUserListBoundField
 
 class NullDirectionField(forms.ChoiceField):
     def __init__(self,**kwargs):
@@ -158,6 +159,7 @@ def AliasFieldFactory(model,field_name,field_class=None,field_params=None):
 
 class HtmlStringField(forms.Field):
     boundfield_class = boundfield.HtmlStringBoundField
+    listboundfield_class = boundfield.HtmlStringListBoundField
 
     def __init__(self,html,*args,**kwargs):
         kwargs["widget"] = widgets.HtmlString
@@ -218,6 +220,9 @@ def CompoundFieldFactory(compoundfield_class,model,field_name,related_field_name
         #set boundfield_class to CompoundBoundField if not present
         if not hasattr(field_cls,"boundfield_class") or not getattr(field_cls,"boundfield_class"):
             setattr(field_cls,"boundfield_class",boundfield.CompoundBoundField)
+        if not hasattr(field_cls,"listboundfield_class") or not getattr(field_cls,"listboundfield_class"):
+            setattr(field_cls,"listboundfield_class",boundfield.CompoundListBoundField)
+
 
         field_classes[class_key] = field_cls
         #print("{}.{}={}".format(field_name,field_classes[class_key],field_classes[class_key].get_layout))
@@ -621,7 +626,7 @@ NullBooleanChoiceFilter = ChoiceFieldFactory([
 
 
 @receiver(actions_inited)
-def init_actions(sender,**kwargs):
+def init_fields(sender,**kwargs):
     for key,cls in field_classes.items():
         #print("{}={}".format(key,cls))
         if hasattr(cls,"__init_class"):

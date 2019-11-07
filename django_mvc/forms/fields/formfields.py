@@ -15,7 +15,8 @@ class FormField(forms.Field):
     _form_class_name = None
     _is_display=True
 
-    boundfield_class = boundfield.BoundFormField
+    boundfield_class = boundfield.FormBoundField
+    listboundfield_class = boundfield.FormListBoundField
 
     
     def __init__(self, *args,**kwargs):
@@ -56,7 +57,7 @@ def FormFieldFactory(form_class_name):
     return field_classes[class_key]
 
 @receiver(fields_inited)
-def init_actions(sender,**kwargs):
+def init_formfields(sender,**kwargs):
     for key,cls in field_classes.items():
         if key.startswith("FormField<"):
             cls._form_class = get_class(cls._form_class_name)

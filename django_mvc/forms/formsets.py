@@ -4,12 +4,14 @@ from django.forms.formsets import DELETION_FIELD_NAME
 from django.db import transaction
 from django.template import (Template,Context)
 from django.utils.html import mark_safe
+from django.dispatch import receiver
 
 from . import forms
 from .listform import (ToggleableFieldIterator,ListModelFormMetaclass)
 from . import boundfield
 from . import fields
 from .utils import Media
+from django_mvc.signals import listforms_inited,system_ready
 
 class FormSetMedia(Media):
     """
@@ -45,7 +47,7 @@ class FormSetMedia(Media):
             """.format(formcls.model_name_lower,formcls.model_primary_key))
 
         if formcls.can_add:
-            row_template = formcls.row_template.render(Context({"listform":formcls}))
+            row_template = formcls.row_template.render(Context({"formset":formcls}))
         else:
             row_template = ""
 
@@ -106,7 +108,7 @@ class FormSetMedia(Media):
         </script>
         """.format(form.model_name_lower,form.prefix))
     
-class FormSet(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,formsets.BaseFormSet):
+class FormSet(forms.ActionMixin,forms.RequestUrlMixin,formsets.BaseFormSet):
     check = None
     _errors = None
     error_title = None
@@ -175,6 +177,9 @@ class FormSet(forms.ActionMixin,forms.RequestUrlMixin,forms.RequestMixin,formset
     @property
     def renderer(self):
         return None
+
+    def set_data(self,data):
+        self.instance_list = data
 
     def _should_delete_form(self,form):
         return False
@@ -339,14 +344,8 @@ class FormSetMemberForm(forms.ModelForm,metaclass=ListModelFormMetaclass):
                     )
                 )
         if name not in self._bound_fields_cache:
-            if isinstance(field,fields.CompoundField):
-                self._bound_fields_cache[name] = boundfield.CompoundListBoundField(self,field,name)
-            elif isinstance(field,fields.AggregateField):
-                self._bound_fields_cache[name] = boundfield.AggregateBoundField(self,field,name)
-            elif isinstance(field,fields.HtmlStringField):
-                self._bound_fields_cache[name] = boundfield.HtmlStringBoundField(self,field,name)
-            else:
-                self._bound_fields_cache[name] = boundfield.ListBoundField(self,field,name)
+            self._bound_fields_cache[name] = field.create_boundfield(self,field,name,True)
+
         return self._bound_fields_cache[name]
 
     @property
@@ -388,13 +387,13 @@ def formset_factory(form, formset=FormSet, extra=1, can_order=False,
         <table id="{0}_result_list" class="table table-striped table-condensed table-hober table-fixed-header">
             <thead>
                 <tr>
-                    {{% for field in listform.boundfields %}}
+                    {{% for field in formset.boundfields %}}
                     {{% call_method field "html_header" "<th {{attrs}}><div class='text'>{{label}}</div></th>"%}}
                     {{% endfor %}}
                 </tr>
             </thead>
             <tbody>
-                {{% for form in listform %}}
+                {{% for form in formset %}}
                 <tr> 
                     {{% for field in form.boundfields %}}
                         {{% call_method field "html" "<td {{attrs}}>{{widget}}</td>"%}}
@@ -403,14 +402,14 @@ def formset_factory(form, formset=FormSet, extra=1, can_order=False,
                 {{% endfor %}}
     
             </tbody>
-            {{% if listform.haslistfooter %}}
+            {{% if formset.haslistfooter %}}
             <tfoot>
-                {{% for row in listform.listfooter %}}
+                {{% for row in formset.listfooter %}}
                 <tr> 
                     {{% for column in row %}}
                     <th {{% if column.1 == 0 %}} style="display:none" {{% elif column.1 > 1 %}}colspan={{{{column.1}}}} {{% endif %}}>
                         {{% if column.0 %}}
-                        {{% call_method listform "footerfield" column.0 %}}
+                        {{% call_method formset "footerfield" column.0 %}}
                         {{% else %}}
                         &nbsp;
                         {{% endif %}}
@@ -428,7 +427,7 @@ def formset_factory(form, formset=FormSet, extra=1, can_order=False,
     if not row_template:
         row_template = """
         {% load pbs_utils %}
-        {% for form in listform.template_forms %}<tr> 
+        {% for form in formset.template_forms %}<tr> 
             {% for field in form.boundfields %}
                 {% call_method_escape field "html" "<td {attrs}>{widget}</td>" %}
             {% endfor %}
@@ -462,4 +461,11 @@ def formset_factory(form, formset=FormSet, extra=1, can_order=False,
             cls.media = cls.form_media
 
     return cls
+
+@receiver(listforms_inited)
+def init_formsets(sender,**kwargs):
+
+    system_ready.send(sender="formsets")
+
+
 

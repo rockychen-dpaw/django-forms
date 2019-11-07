@@ -1,5 +1,5 @@
 from django.forms.widgets import *
-from .widgets import (DisplayWidget,DisplayMixin,TextDisplay,FinancialYearDisplay,TextareaDisplay,ListDisplayFactory,ModelListDisplayFactory,
+from .widgets import (DisplayWidget,DisplayMixin,TextDisplay,FinancialYearDisplay,TextareaDisplay,ListDisplayFactory,
         Hyperlink,HyperlinkFactory,TemplateDisplay,HtmlString,
         TemplateWidgetFactory,SwitchWidgetFactory,ChoiceWidgetFactory,SelectableSelect,
         DisplayWidgetFactory,ChoiceFieldRendererFactory,HtmlTag,ImgBooleanDisplay,CheckboxBooleanDisplay,TextBooleanDisplay,DropdownMenuSelectMultiple,
@@ -7,7 +7,8 @@ from .widgets import (DisplayWidget,DisplayMixin,TextDisplay,FinancialYearDispla
         FloatDisplay,IntegerDisplay,ObjectDisplay,
         FilteredSelect,FilesizeDisplay,
         DataPreparationMixin,
-        FormSetWidget,FormSetDisplayWidget)
+        FormSetWidget,FormSetDisplayWidget,
+        ListFormWidget)
 
 from .adminwidgets import (FilteredSelectMultiple,)
 

@@ -363,6 +363,193 @@ class CompoundBoundField(BoundField):
 class LoginUserCompoundBoundField(LoginUserMixin,CompoundBoundField):
     pass
 
+class FormBoundField(BoundField):
+    def __init__(self,*args,**kwargs):
+        super(FormBoundField,self).__init__(*args,**kwargs)
+        self._bound_fields_cache = {}
+        if self.form.is_bound and not self.field.is_display:
+            raise NotImplementedError
+        else:
+            self.innerform = self.field.form_class(instance=self.value(),prefix=self.name,check=self.form.check)
+
+    @property
+    def initial(self):
+        return self.form.initial.get(self.name, self.field.get_initial())
+
+    def html(self,template=None,method="as_widget"):
+        raise NotImplementedError
+
+    @property
+    def is_bound(self):
+        return self.form.is_bound and not self.field.is_display
+
+    @property
+    def is_changed(self):
+        return self.innerform.is_changed
+
+    def set_data(self):
+        obj = self.initial
+        self.form.set_data(obj)
+
+    def full_clean(self):
+        if self.innerform.is_valid():
+            return self.innerform.cleaned_data
+        else:
+           raise ValidationError("") #error placeholder, but not display in page
+
+    def full_check(self):
+        return self.innerform.full_check()
+
+    def value(self):
+        """
+        Returns the value for this BoundField, using the initial value if
+        the form is not bound or the data otherwise.
+        """
+        if self.form.is_bound and not self.field.is_display:
+            raise NotImplementedError
+        else:
+            return self.form.initial.get(self.name, self.field.get_initial())
+
+    def as_widget(self, widget=None, attrs=None, only_initial=False):
+        raise NotImplementedError
+
+    def __getitem__(self, name):
+        """Return a BoundField with the given name."""
+        try:
+            field = self.field.form_class.all_fields[name]
+        except KeyError:
+            raise KeyError(
+                "Key '%s' not found in '%s'. Choices are: %s." % (
+                    name,
+                    self.__class__.__name__,
+                    ', '.join(sorted(f for f in self.fields)),
+                )
+            )
+        if name not in self._bound_fields_cache:
+            if isinstance(field,fields.CompoundField):
+                self._bound_fields_cache[name] = CompoundBoundField(self.innerform,field,name)
+            else:
+                self._bound_fields_cache[name] = BoundField(self.innerform,field,name)
+        return self._bound_fields_cache[name]
+    
+    def save(self):
+        return self.innnerform.save(savemessage=False)
+
+class FormSetBoundField(BoundField):
+    _is_changed = None
+
+    def __init__(self,*args,**kwargs):
+        super(FormSetBoundField,self).__init__(*args,**kwargs)
+        self.formset = self.field.formset_class(
+            data=self.form.data if self.form.is_bound else None,
+            instance_list=self.initial,
+            prefix=self.name,
+            parent_instance=self.form.instance,
+            check=self.form.check,
+            request=self.form.request,
+            requesturl=self.form.requesturl
+        )
+
+    @property
+    def initial(self):
+        return self.form.initial.get(self.name, self.field.get_initial())
+
+    def html(self,template=None,method="as_widget"):
+        raise NotImplementedError
+
+    @property
+    def is_bound(self):
+        return self.form.is_bound and not self.field.is_display
+
+    def full_clean(self):
+        if self.formset.is_valid():
+            return [form.cleaned_data for form in self.formset]
+        else:
+           raise ValidationError("") #error placeholder, but not display in page
+
+    def full_check(self):
+        return self.formset.full_check()
+
+    def set_data(self):
+        objs = self.initial
+        if isinstance(objs,models.manager.Manager):
+            objs = objs.all()
+        self.formset.set_data(objs)
+
+    @property
+    def is_changed(self):
+        if self._is_changed is None:
+            try:
+                changed = False
+                for form in self.formset:
+                    if form.can_delete:
+                        if form.instance.pk:
+                            changed = True
+                            break
+                    elif form.is_changed:
+                        changed = True
+                        break
+                self._is_changed = changed
+            finally:
+                pass
+                for form in self.formset:
+                    if form.can_delete:
+                        if form.instance.pk:
+                            print("Delete {}({})".format(form.instance.__class__.__name__,form.instance.pk))
+        return self._is_changed
+
+
+    def save(self):
+        if not self.is_changed:
+            return
+
+        for form in self.formset:
+            if form.can_delete:
+                if form.instance.pk:
+                    form.instance.delete()
+            else:
+                form.save(savemessage=False)
+
+    def as_widget(self, widget=None, attrs=None, only_initial=False):
+        return self.field.widget.render(self.name,self.formset,self.form.errors.get(self.name))
+
+    def __iter__(self):
+        return self.formset
+
+class ListFormBoundField(BoundField):
+    def __init__(self,*args,**kwargs):
+        super(ListFormBoundField,self).__init__(*args,**kwargs)
+        objs = self.initial
+        if isinstance(objs,models.manager.Manager):
+            objs = objs.all()
+        self.listform = self.field.listform_class(data=None,instance_list=objs,prefix=self.name,parent_instance=self.form.instance,request=self.form.request,requesturl=self.form.requesturl)
+
+    @property
+    def initial(self):
+        return self.form.initial.get(self.name, None)
+
+    def html(self,template=None,method="as_widget"):
+        raise NotImplementedError
+
+    @property
+    def is_bound(self):
+        return False
+
+    def set_data(self):
+        objs = self.initial
+        if isinstance(objs,models.manager.Manager):
+            objs = objs.all()
+        self.listform.set_data(objs)
+
+
+
+    def as_widget(self, widget=None, attrs=None, only_initial=False):
+        return self.field.widget.render(self.name,self.listform)
+
+    def __iter__(self):
+        return self.formset
+
+
 class ListBoundFieldMixin(object):
     def __init__(self, form, field, name):
         super(ListBoundFieldMixin,self).__init__(form,field,name)
@@ -487,141 +674,18 @@ class CompoundListBoundField(ListBoundFieldMixin,CompoundBoundField):
 class LoginUserCompoundListBoundField(ListBoundFieldMixin,LoginUserCompoundBoundField):
     pass
 
+class FormListBoundField(ListBoundFieldMixin,FormBoundField):
+    pass
 
-class BoundFormField(BoundField):
-    def __init__(self,*args,**kwargs):
-        super(BoundFormField,self).__init__(*args,**kwargs)
-        self._bound_fields_cache = {}
-        if self.form.is_bound and not self.field.is_display:
-            raise NotImplementedError
-        else:
-            self.innerform = self.field.form_class(instance=self.value(),prefix=self.name,check=self.form.check)
+class FormSetListBoundField(ListBoundFieldMixin,FormSetBoundField):
+    pass
 
-    @property
-    def initial(self):
-        return self.form.initial.get(self.name, self.field.get_initial())
+class ListFormListBoundField(ListBoundFieldMixin,ListFormBoundField):
+    pass
 
-    def html(self,template=None,method="as_widget"):
-        raise NotImplementedError
+class HtmlStringListBoundField(ListBoundFieldMixin,HtmlStringBoundField):
+    pass
 
-    @property
-    def is_bound(self):
-        return self.form.is_bound and not self.field.is_display
+class AggregateListBoundField(ListBoundFieldMixin,AggregateBoundField):
+    pass
 
-    @property
-    def is_changed(self):
-        return self.innerform.is_changed
-
-    def full_clean(self):
-        if self.innerform.is_valid():
-            return self.innerform.cleaned_data
-        else:
-           raise ValidationError("") #error placeholder, but not display in page
-
-    def full_check(self):
-        return self.innerform.full_check()
-
-    def value(self):
-        """
-        Returns the value for this BoundField, using the initial value if
-        the form is not bound or the data otherwise.
-        """
-        if self.form.is_bound and not self.field.is_display:
-            raise NotImplementedError
-        else:
-            return self.form.initial.get(self.name, self.field.get_initial())
-
-    def as_widget(self, widget=None, attrs=None, only_initial=False):
-        raise NotImplementedError
-
-    def __getitem__(self, name):
-        """Return a BoundField with the given name."""
-        try:
-            field = self.field.form_class.all_fields[name]
-        except KeyError:
-            raise KeyError(
-                "Key '%s' not found in '%s'. Choices are: %s." % (
-                    name,
-                    self.__class__.__name__,
-                    ', '.join(sorted(f for f in self.fields)),
-                )
-            )
-        if name not in self._bound_fields_cache:
-            if isinstance(field,fields.CompoundField):
-                self._bound_fields_cache[name] = CompoundBoundField(self.innerform,field,name)
-            else:
-                self._bound_fields_cache[name] = BoundField(self.innerform,field,name)
-        return self._bound_fields_cache[name]
-    
-    def save(self):
-        return self.innnerform.save(savemessage=False)
-
-class BoundFormSetField(BoundField):
-    _is_changed = None
-
-    def __init__(self,*args,**kwargs):
-        super(BoundFormSetField,self).__init__(*args,**kwargs)
-        self.formset = self.field.formset_class(data=self.form.data if self.form.is_bound else None,instance_list=self.initial,prefix=self.name,parent_instance=self.form.instance,check=self.form.check)
-
-    @property
-    def initial(self):
-        return self.form.initial.get(self.name, self.field.get_initial())
-
-    def html(self,template=None,method="as_widget"):
-        raise NotImplementedError
-
-    @property
-    def is_bound(self):
-        return self.form.is_bound and not self.field.is_display
-
-    def full_clean(self):
-        if self.formset.is_valid():
-            return [form.cleaned_data for form in self.formset]
-        else:
-           raise ValidationError("") #error placeholder, but not display in page
-
-    def full_check(self):
-        return self.formset.full_check()
-
-    @property
-    def is_changed(self):
-        if self._is_changed is None:
-            try:
-                changed = False
-                for form in self.formset:
-                    if form.can_delete:
-                        if form.instance.pk:
-                            changed = True
-                            break
-                    elif form.is_changed:
-                        changed = True
-                        break
-                self._is_changed = changed
-            finally:
-                pass
-                for form in self.formset:
-                    if form.can_delete:
-                        if form.instance.pk:
-                            print("Delete {}({})".format(form.instance.__class__.__name__,form.instance.pk))
-        return self._is_changed
-
-
-    def save(self):
-        if not self.is_changed:
-            return
-
-        for form in self.formset:
-            if form.can_delete:
-                if form.instance.pk:
-                    form.instance.delete()
-            else:
-                form.save(savemessage=False)
-
-    def as_widget(self, widget=None, attrs=None, only_initial=False):
-        return self.field.widget.render(self.name,self.formset,self.form.errors.get(self.name))
-
-    def __iter__(self):
-        return self.formset
-
-
-    

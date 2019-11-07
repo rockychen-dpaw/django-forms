@@ -4,6 +4,7 @@ from .. import boundfield
 
 class AggregateField(django_fields.Field):
     boundfield_class = boundfield.AggregateBoundField
+    listboundfield_class = boundfield.AggregateListBoundField
     
     def __init__(self,form_field_name,*args,**kwargs):
         if "widget" not in kwargs:
