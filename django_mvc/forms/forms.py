@@ -54,9 +54,16 @@ def create_boundfield(self,form,field,name,is_listform=False):
     from .formsets import FormSet
 
     if is_listform:
-        return self.listboundfield_class(form,field,name)
+        try:
+            return self.listboundfield_class(form,field,name)
+        except:
+            return boundfield.ListBoundField(form,field,name)
     else:
-        return self.boundfield_class(form,field,name)
+        try:
+            return self.boundfield_class(form,field,name)
+        except:
+            return boundfield.BoundField(form,field,name)
+
     
 
 class EditableFieldsMixin(object):
@@ -1171,7 +1178,7 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
     #True if any data is changed;False if no data is changed;none if not check
     _is_changed = None
     #True for new model instance; False for existing model instance;none if not set
-    created = None
+    is_created = None
     #contain all the changed data , for debug
     _changed_data = None
 
@@ -1450,22 +1457,25 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
             self.changed_m2m_fields = []
             for key in self.fields.keys():
                 try:
-                    if not is_equal(self.cleaned_data.get(key),getattr(self.instance,key)):
-                        if key in self.update_db_fields:
+                    if key in self.update_db_fields:
+                        if not is_equal(self.cleaned_data.get(key),getattr(self.instance,key)):
                             self.changed_db_fields.append(key)
                             #for debug
                             self._changed_data[key] = (getattr(self.instance,key), self.cleaned_data.get(key))
-                        else:
+                    elif key in self.update_m2m_fields:
+                        if not is_equal(self.cleaned_data.get(key),getattr(self.instance,key)):
                             self.changed_m2m_fields.append(key)
                             #for debug
                             self._changed_data[key] = (getattr(self.instance,key).all(), self.cleaned_data.get(key))
+                    else:
+                        pass
                 except Exception as ex:
                     traceback.print_exc()
                     raise Exception("Failed to check whether the model field({}.{}.{}) is equal with the post data.{} ".format(self._meta.model.__module__,self._meta.model.__class__.__name__,key,str(ex)))
 
-            self.created = False
+            self.is_created = False
         else:
-            self.created = True
+            self.is_created = True
 
 
         #call clean_ method for m2m fields on model instance
@@ -1510,9 +1520,9 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
         if self._is_changed is None:
             try:
                 changed = False
-                if self.created is None:
+                if self.is_created is None:
                     raise Exception("Please call full_clean first")
-                elif self.created:
+                elif self.is_created:
                     #new model instance
                     changed = True
                 else:
@@ -1539,7 +1549,7 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
             finally:
                 pass
                 #print the changed data for debug
-                if (self.created):
+                if self.is_created:
                     print("create a {} instance".format(self.instance.__class__.__name__))
                 elif self._changed_data:
                     if (self.changed_db_fields or self.changed_m2m_fields or self.changed_model_properties):
@@ -1587,11 +1597,11 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
         Return update success message to show in the next page
         """
         if not self.is_changed:
-            return "{}({} - {}) wasn't changed".format(self.model_verbose_name,instance.pk,instance)
+            return "{}({} - {}) wasn't changed".format(self.model_verbose_name,self.instance.pk,self.instance)
         elif self.is_created:
-            return "Create {}({}) successfully".format(self.model_verbose_name,instance)
+            return "Create {}({}) successfully".format(self.model_verbose_name,self.instance)
         else :
-            return "Update {}({} - {}) successfully".format(self.model_verbose_name,instance.pk,instance)
+            return "Update {}({} - {}) successfully".format(self.model_verbose_name,self.instance.pk,self.instance)
 
     def add_message(self,message,level=messages.SUCCESS):
         """
