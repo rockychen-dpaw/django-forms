@@ -406,8 +406,8 @@ class ListBoundFieldMixin(object):
 
     def html_header(self,template,style=""):
         label = (conditional_escape(self.label) or '') if self.label else ''
-        if self.form._meta.container_attrs and self.form_field_name in self.form._meta.container_attrs:
-            attrs = self.form._meta.container_attrs[self.form_field_name][0] or {}
+        if self.form._meta.columns_attrs and self.form_field_name in self.form._meta.columns_attrs:
+            attrs = self.form._meta.columns_attrs[self.form_field_name][0] or {}
         else:
             attrs={}
 
@@ -448,8 +448,8 @@ class ListBoundFieldMixin(object):
         return mark_safe(template.format(label=label,attrs=attrs))
 
     def html(self,template,style=""):
-        if self.form._meta.container_attrs and self.form_field_name in self.form._meta.container_attrs:
-            attrs = self.form._meta.container_attrs[self.form_field_name][1] or {}
+        if self.form._meta.columns_attrs and self.form_field_name in self.form._meta.columns_attrs:
+            attrs = self.form._meta.columns_attrs[self.form_field_name][1] or {}
         else:
             attrs={}
 

@@ -259,7 +259,7 @@ class BaseFormMetaclassMixin(object):
         6. all_fields: list all the fields
         7. editable_fields: list all editable fields
         8. ordered_fields: support sort fields, default is 'all_fields'
-        9. container_attrs: specify the attributes(including css) of the field's container element. mostly used in the list table.is a tuple with length 2; first is for header; second is for data
+        9. columns_attrs: specify the attributes(including css) of the field's container element. mostly used in the list table.is a tuple with length 2; first is for header; second is for data
         10. listfooter_fields: the footer fields for the list. a 2 dimensions list. the first dimension is row, the second dimension is column.
             column can be.
             1. None: empty column
@@ -353,7 +353,7 @@ class BaseFormMetaclassMixin(object):
             if hasattr(attrs['Meta'],"all_fields") and not hasattr(attrs['Meta'],"ordered_fields"):
                 setattr(attrs['Meta'],"ordered_fields",getattr(attrs['Meta'],'all_fields'))
 
-            for item in ("editable_fields","container_attrs","listfooter_fields"):
+            for item in ("editable_fields","columns_attrs","listfooter_fields"):
                 if not hasattr(attrs['Meta'],item):
                     config = BaseFormMetaclassMixin.get_meta_property_from_base(bases,item)
                     if config:
@@ -426,7 +426,7 @@ class BaseFormMetaclassMixin(object):
             setattr(new_class,"_meta",Opts)
 
         #copy properties from Meta class to _meta class
-        for item in ("all_fields","ordered_fields","labels_config","field_classes_config","widgets_config","container_attrs","editable_fields","purpose","listfooter_fields"):
+        for item in ("all_fields","ordered_fields","labels_config","field_classes_config","widgets_config","columns_attrs","editable_fields","purpose","listfooter_fields"):
             if hasattr(meta,item) :
                 setattr(opts,item,getattr(meta,item))
             else:
