@@ -40,7 +40,7 @@ class UserMixin(object):
 class ErrorMixin(object):
     errorform_keys = ("form",)
     error_title = "Please correct the error below."
-    errors_title = "Please correct {{error_count}} errors below."
+    errors_title = "Please correct {0} errors below."
 
     def _get_errors(self,non_field_errors,errors):
         count = 0
@@ -1251,9 +1251,14 @@ class ListUpdateView(ListView):
         return self.render_to_response(context)
 
     def form_valid(self):
-        if isinstance(self.listform,FormSet):
-            self.listform.save()
-        return HttpResponseRedirect(self.get_success_url())
+        try:
+            if isinstance(self.listform,FormSet):
+                self.listform.save()
+            return HttpResponseRedirect(self.get_success_url())
+        except:
+            self.listform.add_error("",str(ex))
+            return self.form_invalid()
+
 
         
 class OneToManyListUpdateView(OneToManyModelMixin,ListUpdateView):
@@ -1296,6 +1301,7 @@ class OneToManyListUpdateView(OneToManyModelMixin,ListUpdateView):
                     else:
                         raise Exception("Invalid input")
             return HttpResponseRedirect(self.get_success_url())
-        except:
+        except Exception as ex:
+            self.listform.add_error(None,str(ex))
             return self.form_invalid()
 
