@@ -351,6 +351,8 @@ class RequestUrl(object):
     _sorting = None
     current_action = None
 
+    _nexturl = None
+
     def __init__(self,request):
         self.request = request
 
@@ -526,6 +528,37 @@ class RequestUrl(object):
         """
         self._parse_paging()
         return self.qs_without_paging
+
+    nexturl_re = re.compile('[?&]nexturl=([^&]+)')
+    @property
+    def nexturl(self):
+        """
+        return nexturl as a list if have;
+        """
+        if self._nexturl is None:
+            qs,groups = self._get_request_parameter(nexturl_re,remove=False)
+            if not groups:
+                self._nexturl = []
+            else:
+                self._nexturl = groups[1][0].split(";")
+            
+        return self._nexturl
+
+    def get_nexturl(self,nexturl):
+        """
+        append nexturl to current nexturls and return the final nexturl as a quoted string
+        """
+
+        #currently, don't support multiple nexturl
+        return quote(nexturl)
+
+        current_nexturl = self.nexturl
+        if not current_nexturl:
+            return quote(nexturl)
+        elif len(current_nexturl) == 1:
+            return quote("{};{}".format(current_nexturl[0],nexturl))
+        else:
+            return quote("{};{}".format(";".join(current_nexturl),nexturl))
 
     def get_querystring(self,paramname,paramvalue=None):
         """

@@ -16,7 +16,6 @@ class ListFormField(forms.Field):
     widget = widgets.TextDisplay()
 
     boundfield_class = boundfield.ListFormBoundField
-    listboundfield_class = boundfield.ListFormListBoundField
 
     def __init__(self, *args,**kwargs):
         kwargs["widget"] = widgets.ListFormWidget(self)

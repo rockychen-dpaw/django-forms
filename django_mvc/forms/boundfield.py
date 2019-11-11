@@ -210,7 +210,7 @@ class BoundField(forms.boundfield.BoundField):
             pass
         return html
 
-class LoginUserMixin(BoundField):
+class LoginUserBoundField(BoundField):
     @property
     def initial(self):
         if self.form.request:
@@ -225,9 +225,6 @@ class LoginUserMixin(BoundField):
         """
         return self.initial
 
-class LoginUserBoundField(LoginUserMixin,BoundField):
-    pass
-
 class AggregateBoundField(BoundField):
 
     def value(self):
@@ -237,12 +234,12 @@ class AggregateBoundField(BoundField):
         return self.field.widget.render(self.name,self.value())
 
 @html_safe
-class CompoundBoundField(BoundField):
+class CompoundBoundFieldMixin(object):
     """
-    The boundfield for compound field
+    a mixin to implement compound bound field
     """
     def __init__(self, form, field, name):
-        super(CompoundBoundField,self).__init__(form,field,name)
+        super(CompoundBoundFieldMixin,self).__init__(form,field,name)
         if self.field.field_prefix:
             self.related_fields = [self.form["{}{}".format(self.field.field_prefix,name)] for name in field.related_field_names]
         else:
@@ -322,10 +319,10 @@ class CompoundBoundField(BoundField):
 
         if include_primary_field:
             if isinstance(html_layout,(tuple,list)):
-                html = super(CompoundBoundField,self).as_widget(attrs=html_layout[1],only_initial=only_initial)
+                html = super(CompoundBoundFieldMixin,self).as_widget(attrs=html_layout[1],only_initial=only_initial)
                 html_layout = html_layout[0]
             else:
-                html = super(CompoundBoundField,self).as_widget(only_initial=only_initial)
+                html = super(CompoundBoundFieldMixin,self).as_widget(only_initial=only_initial)
 
             if field_names:
                 args = get_args()
@@ -357,11 +354,8 @@ class CompoundBoundField(BoundField):
         """
         Returns a string of HTML for representing this as an <input type="hidden">.
         """
-        html = super(CompoundBoundField,self).as_widget(self.field.hidden_widget(), attrs, **kwargs)
+        html = super(CompoundBoundFieldMixin,self).as_widget(self.field.hidden_widget(), attrs, **kwargs)
         return self.field.hidden_layout.format(html,*[f.as_widget(f.field.hidden_widget(),None,**kwargs) for f in self.related_fields])
-
-class LoginUserCompoundBoundField(LoginUserMixin,CompoundBoundField):
-    pass
 
 class FormBoundField(BoundField):
     def __init__(self,*args,**kwargs):
@@ -415,22 +409,7 @@ class FormBoundField(BoundField):
 
     def __getitem__(self, name):
         """Return a BoundField with the given name."""
-        try:
-            field = self.field.form_class.all_fields[name]
-        except KeyError:
-            raise KeyError(
-                "Key '%s' not found in '%s'. Choices are: %s." % (
-                    name,
-                    self.__class__.__name__,
-                    ', '.join(sorted(f for f in self.fields)),
-                )
-            )
-        if name not in self._bound_fields_cache:
-            if isinstance(field,fields.CompoundField):
-                self._bound_fields_cache[name] = CompoundBoundField(self.innerform,field,name)
-            else:
-                self._bound_fields_cache[name] = BoundField(self.innerform,field,name)
-        return self._bound_fields_cache[name]
+        return self.innerform[name]
     
     def save(self):
         return self.innnerform.save(savemessage=False)
@@ -661,31 +640,40 @@ class ListBoundFieldMixin(object):
 
         return mark_safe(template.format(attrs=attrs,widget=self.as_widget()))
 
-        
-class ListBoundField(ListBoundFieldMixin,BoundField):
-    pass
+class MultiValueBoundField(BoundField):
+    def as_widget(self, widget=None, attrs=None, only_initial=False):
+        return self.field.render(self.form,self.name,self.value(),attrs=attrs)
+ 
 
-class LoginUserListBoundField(ListBoundFieldMixin,LoginUserBoundField):
-    pass
+listboundfield_classes = {}
+def get_listboundfield(boundfield):
+    """
+    Get a base boundfield's corresponding list bound field
+    """
+    if boundfield not in listboundfield_classes:
+        name = boundfield.__name__
+        if name.endswith("BoundField"):
+            name = "{}ListBoundField".format(name[0:-len("BoundField")])
+        else:
+            name = "{}ListBoundField".format(name)
+        listboundfield_classes[boundfield] = type(name,(ListBoundFieldMixin,boundfield),{})
 
-class CompoundListBoundField(ListBoundFieldMixin,CompoundBoundField):
-    pass
+    return listboundfield_classes[boundfield]
 
-class LoginUserCompoundListBoundField(ListBoundFieldMixin,LoginUserCompoundBoundField):
-    pass
 
-class FormListBoundField(ListBoundFieldMixin,FormBoundField):
-    pass
+compoundboundfield_classes = {}
+def get_compoundboundfield(boundfield):
+    """
+    Get a base boundfield's corresponding compound bound field
+    """
+    if boundfield not in compoundboundfield_classes:
+        name = boundfield.__name__
+        if name.endswith("BoundField"):
+            name = "{}CompoundBoundField".format(name[0:-len("BoundField")])
+        else:
+            name = "{}CompoundBoundField".format(name)
+        compoundboundfield_classes[boundfield] = type(name,(CompoundBoundFieldMixin,boundfield),{})
 
-class FormSetListBoundField(ListBoundFieldMixin,FormSetBoundField):
-    pass
+    return compoundboundfield_classes[boundfield]
 
-class ListFormListBoundField(ListBoundFieldMixin,ListFormBoundField):
-    pass
-
-class HtmlStringListBoundField(ListBoundFieldMixin,HtmlStringBoundField):
-    pass
-
-class AggregateListBoundField(ListBoundFieldMixin,AggregateBoundField):
-    pass
 

@@ -5,7 +5,8 @@ from .fields import (HtmlStringField,CompoundField,SwitchFieldFactory,OtherOptio
         ConditionalMultipleFieldFactory,OverrideFieldFactory,
         ModelChoiceFilterField,
         AliasFieldMixin,AliasFieldFactory,ObjectField,
-        LoginUserField
+        LoginUserField,
+        HyperlinkFieldFactory
         )
 
 from .formfields import (FormField,FormFieldFactory)

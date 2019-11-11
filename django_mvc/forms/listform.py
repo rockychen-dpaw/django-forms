@@ -565,12 +565,15 @@ def init_listforms(sender,**kwargs):
     for cls in forms._formclasses:
         if not issubclass(cls,ListForm):
             continue
-
         #find all fields which are required to call 'set_data' method to set the boundfield's data when listform's cursor is moved.
         fields = []
         for name,field in cls.total_fields.items():
-            if hasattr(field.listboundfield_class,"set_data"):
-                fields.append(name)
+            try:
+                if hasattr(field.listboundfield_class,"set_data"):
+                    fields.append(name)
+            except:
+                import ipdb;ipdb.set_trace()
+                raise;
 
         #set __next__ to the suitable method
         if fields:

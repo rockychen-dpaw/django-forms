@@ -57,12 +57,16 @@ def create_boundfield(self,form,field,name,is_listform=False):
         try:
             return self.listboundfield_class(form,field,name)
         except:
-            return boundfield.ListBoundField(form,field,name)
+            if not hasattr(self,"listboundfield_class"):
+                return boundfield.get_listboundfield(boundfield.BoundField)(form,field,name)
+            raise
     else:
         try:
             return self.boundfield_class(form,field,name)
         except:
-            return boundfield.BoundField(form,field,name)
+            if not hasattr(self,"boundfield_class"):
+                return boundfield.BoundField(form,field,name)
+            raise
 
     
 
@@ -226,6 +230,10 @@ class RequestMixin(object):
         self.request = request
         super(RequestMixin,self).__init__(*args,**kwargs)
 
+    @property
+    def loginuser(self):
+        return self.request.user
+
 class RequestUrlMixin(RequestMixin):
     """
     A mixin to inject a request url object into a form instance to provide some request url related properties and method
@@ -264,6 +272,13 @@ class RequestUrlMixin(RequestMixin):
     @property
     def querystring_without_paging(self):
         return self.requesturl.querystring_without_paging
+
+    @property
+    def nexturl(self):
+        return self.requesturl.nexturl
+
+    def get_nexturl(self,nexturl):
+        return self.requesturl.get_nexturl(nexturl)
 
     def get_querystring(self,paramname,paramvalue=None):
         return self.requesturl.get_querystring(paramname,paramvalue)
@@ -746,14 +761,6 @@ class BaseFormMetaclassMixin(object):
                 else:
                     raise Exception("Can't declare alias({}) for editable field ({})".format(field_name,formfield.field_name))
 
-            #set the boundfield class if not set by field
-            if not hasattr(formfield,"boundfield_class") or not getattr(formfield,"boundfield_class"):
-                formfield.boundfield_class = boundfield.BoundField
-            if not hasattr(formfield,"listboundfield_class") or not getattr(formfield,"listboundfield_class"):
-                formfield.listboundfield_class = boundfield.ListBoundField
-            #create a instance method to create boundfild
-            formfield.__class__.create_boundfield = create_boundfield
-
             field_list.append((field_name, formfield))
             #check whether widget requires subproperty support
             if not subproperty_enabled and isinstance(formfield.widget,widgets.DataPreparationMixin) and formfield.widget.subproperty_enabled :
@@ -835,14 +842,6 @@ class BaseFormMetaclassMixin(object):
     
                 formfield = formfield_callback(None, **kwargs)
     
-                #set the boundfield class if not set by field
-                if not hasattr(formfield,"boundfield_class") or not getattr(formfield,"boundfield_class"):
-                    formfield.boundfield_class = BoundField
-                if not hasattr(formfield,"listboundfield_class") or not getattr(formfield,"listboundfield_class"):
-                    formfield.listboundfield_class = ListBoundField
-                #create a instance method to create boundfild
-                formfield.__class__.create_boundfield = create_boundfield
-
                 formfield.form_declared = True
 
                 row_field_list.append((field_name, colspan))
@@ -902,6 +901,16 @@ class BaseFormMetaclassMixin(object):
             total_fields = dict(new_class.all_fields)
             total_fields.update(new_class.listfooter_fields)
         setattr(new_class,"total_fields",total_fields)
+
+        #initialize boundfield related data
+        for name,field in new_class.total_fields.items():
+            #set default boundfield
+            if not hasattr(field,"boundfield_class") or not getattr(field,"boundfield_class"):
+                field.boundfield_class = boundfield.BoundField
+            field.listboundfield_class = boundfield.get_listboundfield(field.boundfield_class)
+            #create a instance method to create boundfild
+            field.__class__.create_boundfield = create_boundfield
+
 
         return new_class
 

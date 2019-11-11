@@ -24,7 +24,7 @@ class NullValueMixin(object):
     """
     A widget mixin to return a specified null value if the data is null
     """
-    def __init__(self,null_value = "",is_null = None,*args,**kwargs):
+    def __init__(self,null_value = "",is_null = None,extra_value=False,*args,**kwargs):
         super(NullValueMixin,self).__init__(*args,**kwargs)
         self.null_value = null_value or ""
 
@@ -35,7 +35,11 @@ class NullValueMixin(object):
 
         self.null_value = mark_safe(self.null_value)
         self._render = self.render
-        self.render = self._render2
+        if extra_value:
+            self.render = self._render3
+        else:
+            self.render = self._render2
+
 
 
     def _render2(self,name,value,attrs=None,renderer=None):
@@ -43,6 +47,12 @@ class NullValueMixin(object):
             return self.null_value
         else:
             return self._render(name,value,attrs=attrs,renderer=renderer)
+    
+    def _render3(self,name,value,attrs=None,renderer=None,**extra_values):
+        if self.is_null(value):
+            return self.null_value
+        else:
+            return self._render(name,value,attrs=attrs,renderer=renderer,**extra_values)
     
 class DisplayMixin(NullValueMixin):
     """
@@ -195,6 +205,22 @@ class DataPreparationMixin(object):
         """
         raise NotImplemented("Not implemented")
 
+
+class HyperlinkWidget(DisplayWidget):
+    template = None
+    def __init__(self,widget=TextDisplay,template=None):
+        super(HyperlinkWidget,self).__init__(is_null=lambda value: value is None or value == "",extra_value=True)
+        self.widget = widget if isinstance(widget,forms.Widget) else widget()
+        if template:
+            self.template = template
+        else:
+            self.template = "<a href='{url}' onclick='event.stopPropagation();'>{widget}</a>"
+
+    def render(self,name,value,attrs=None,renderer=None,url=""):
+        if callable(self.template):
+            return self.template(value).format(url=url,widget=self.widget.render(name,value,attrs,renderer))
+        else:
+            return self.template.format(url=url,widget=self.widget.render(name,value,attrs,renderer))
 
 class Hyperlink(DataPreparationMixin,DisplayWidget):
     template = None

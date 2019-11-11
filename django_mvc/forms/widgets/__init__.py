@@ -8,7 +8,8 @@ from .widgets import (DisplayWidget,DisplayMixin,TextDisplay,FinancialYearDispla
         FilteredSelect,FilesizeDisplay,
         DataPreparationMixin,
         FormSetWidget,FormSetDisplayWidget,
-        ListFormWidget)
+        ListFormWidget,
+        HyperlinkWidget)
 
 from .adminwidgets import (FilteredSelectMultiple,)
 

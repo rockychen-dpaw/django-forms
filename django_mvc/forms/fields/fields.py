@@ -44,7 +44,6 @@ class ObjectField(forms.Field):
 
 class LoginUserField(ObjectField):
     boundfield_class = boundfield.LoginUserBoundField
-    listboundfield_class = boundfield.LoginUserListBoundField
 
 class NullDirectionField(forms.ChoiceField):
     def __init__(self,**kwargs):
@@ -159,7 +158,6 @@ def AliasFieldFactory(model,field_name,field_class=None,field_params=None):
 
 class HtmlStringField(forms.Field):
     boundfield_class = boundfield.HtmlStringBoundField
-    listboundfield_class = boundfield.HtmlStringListBoundField
 
     def __init__(self,html,*args,**kwargs):
         kwargs["widget"] = widgets.HtmlString
@@ -170,6 +168,8 @@ class CompoundField(AliasFieldMixin,FieldParametersMixin):
     """
     A base class of compund field which consists of multiple form fields
     """
+    #if used as a nested field, the html name should be prefixed by parent's html name, and field_prefix will be set as the parent's html name during form class initialization.
+
     field_prefix = None
     related_field_names = []
     hidden_layout = None
@@ -207,7 +207,9 @@ def CompoundFieldFactory(compoundfield_class,model,field_name,related_field_name
     if class_key not in field_classes:
         class_id += 1
         class_name = "{}_{}".format(field_class.__name__,class_id)
-        kwargs.update({"field_name":field_name,"related_field_names":related_field_names,"hidden_layout":hidden_layout})
+        base_boundfield_class = field_class.boundfield_class if hasattr(field_class,"boundfield_class") and getattr(field_class,"boundfield_class") else boundfield.BoundField
+        kwargs.update({"field_name":field_name,"related_field_names":related_field_names,"hidden_layout":hidden_layout,"boundfield_class":boundfield.get_compoundboundfield(base_boundfield_class)})
+        print(kwargs["boundfield_class"])
         if "field_params" in kwargs:
             field_params = kwargs["field_params"]
             field_kwargs,extra_fields = init_field_params(field_class,field_params)
@@ -217,12 +219,6 @@ def CompoundFieldFactory(compoundfield_class,model,field_name,related_field_name
 
 
         field_cls = type(class_name,(compoundfield_class,field_class),kwargs)
-        #set boundfield_class to CompoundBoundField if not present
-        if not hasattr(field_cls,"boundfield_class") or not getattr(field_cls,"boundfield_class"):
-            setattr(field_cls,"boundfield_class",boundfield.CompoundBoundField)
-        if not hasattr(field_cls,"listboundfield_class") or not getattr(field_cls,"listboundfield_class"):
-            setattr(field_cls,"listboundfield_class",boundfield.CompoundListBoundField)
-
 
         field_classes[class_key] = field_cls
         #print("{}.{}={}".format(field_name,field_classes[class_key],field_classes[class_key].get_layout))
@@ -625,13 +621,102 @@ NullBooleanChoiceFilter = ChoiceFieldFactory([
     ],choice_class=forms.TypedMultipleChoiceField ,field_params={"coerce":coerce_TrueFalse,'empty_value':None,'required':False},type_name="NullBooleanChoiceFilter")
 
 
+class MultiValueMixin(AliasFieldMixin):
+    boundfield_class = boundfield.MultiValueBoundField
+
+    def render(self,form,name,value,attrs=None):
+        """
+        Use the widget to render the field
+        """
+        return self.widget.render(name,value,attrs=attrs)
+
+class HyperlinkMixin(MultiValueMixin):
+    """
+    A field to implement a hyperlink
+    """
+    widget = widgets.HyperlinkWidget
+
+    url = None
+
+    @classmethod
+    def _init_class(cls):
+        while callable(cls.url):
+            method_args,method_kwargs = getallargs(cls.url)
+            if method_kwargs:
+                raise Exception("The url function({1}) of class ({0}) can't have keywordonly arguments".format(cls.__name__,cls.url))
+            elif len(method_args) == 0 :
+                #no arguments
+                cls.url = cls.url()
+                continue
+            elif len(method_args) != 3:
+                raise Exception("The url function({1}) of class ({0}) can only have three arguments(value,form, instance)".format(cls.__name__,cls.url))
+            elif method_args[0] != "value" and method_args[1] != 'form' and method_args[2] != 'instance':
+                raise Exception("The url function({1}) of class ({0}) can only have three arguments(value,form, instance)".format(cls.__name__,cls.url))
+            else:
+                break
+
+        if callable(cls.url):
+            cls.url = staticmethod(cls.url)
+            cls.render = cls._render2
+        else:
+            cls.render = cls._render1
+
+    def _render1(self,form,name,value,attrs=None):
+        """
+        Use the widget to render the field
+        """
+        return self.widget.render(name,value,attrs=attrs,url=self.url)
+
+    def _render2(self,form,name,value,attrs=None):
+        """
+        Use the widget to render the field
+        """
+        return self.widget.render(name,value,attrs=attrs,url=self.url(value,form,form.instance))
+
+
+def HyperlinkFieldFactory(model,field_name,url,field_class=None,**field_params):
+    """
+    A factory method to create a compoundfield class
+    """
+    global class_id
+
+    field_params = field_params or {}
+    field_class = field_class or (model._meta.get_field(field_name).formfield().__class__ if model else None)
+    if not field_class:
+        raise Exception("Missing field class")
+    class_key = "HyperlinkField_{0}".format(hashvalue("HyperlinkField<{}.{}.{}.{}.{}.{}.{}>".format(
+        model.__module__ if model else "global",
+        model.__name__ if model else "default",
+        field_name,
+        field_class.__module__,
+        field_class.__name__,
+        json.dumps(field_params,cls=JSONEncoder),
+        url)
+    ))
+    if class_key not in field_classes:
+        class_id += 1
+        field_kwargs = {}
+        class_name = "{}_{}".format(field_class.__name__,class_id)
+        if field_params:
+            field_kwargs,extra_fields = init_field_params(field_class,field_params)
+            #print("classname = {}, extra fields = {},field_kwargs = {}".format(class_name,extra_fields,field_kwargs))
+            field_classes[class_key] = type(class_name,(HyperlinkMixin,FieldParametersMixin,field_class),{"field_name":field_name,"field_kwargs":field_kwargs,"extra_fields":extra_fields,"url":url})
+            #print("{}.{}={}".format(field_name,field_classes[class_key],field_classes[class_key].get_layout))
+        else:
+            field_classes[class_key] = type(class_name,(HyperlinkMixin,field_class),{"field_name":field_name,"url":url})
+
+    return field_classes[class_key]
+
+
+
 @receiver(actions_inited)
 def init_fields(sender,**kwargs):
     for key,cls in field_classes.items():
-        #print("{}={}".format(key,cls))
-        if hasattr(cls,"__init_class"):
+        #if key.startswith("Hyperlink"):
+        #    import ipdb;ipdb.set_trace()
+        if hasattr(cls,"_init_class"):
             #initialize the class, and remove the class initialize method
-            cls.__init_class()
+            cls._init_class()
 
     fields_inited.send(sender="fields")
 

@@ -17,7 +17,6 @@ class FormSetField(forms.Field):
     _is_display = True
 
     boundfield_class = boundfield.FormSetBoundField
-    listboundfield_class = boundfield.FormSetListBoundField
 
     def __init__(self, *args,**kwargs):
         kwargs["widget"] = widgets.TextDisplay()

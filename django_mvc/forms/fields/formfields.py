@@ -16,8 +16,6 @@ class FormField(forms.Field):
     _is_display=True
 
     boundfield_class = boundfield.FormBoundField
-    listboundfield_class = boundfield.FormListBoundField
-
     
     def __init__(self, *args,**kwargs):
         kwargs["widget"] = kwargs.get("widget") or TextDisplay()

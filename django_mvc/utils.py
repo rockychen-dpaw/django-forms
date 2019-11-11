@@ -25,8 +25,13 @@ def getallargs(func):
             func_args = []
             #get the args introduced by current method
             if argspec.args:
-                for k in argspec.args if type(cls.__dict__[func_name]) == 'staticmethod' else argspec.args[1:]:
-                    func_args.append(k)
+                try:
+                    for k in argspec.args if type(cls.__dict__[func_name]) == 'staticmethod' else argspec.args[1:]:
+                        func_args.append(k)
+                except:
+                    for k in argspec.args :
+                        func_args.append(k)
+
             #get the kwargs introduced by current method
             if argspec.kwonlyargs:
                 for k in argspec.kwonlyargs:
@@ -348,7 +353,7 @@ def get_type_object(type_name):
 
     type_object = module
     for name in names:
-        if hasattr(module,name):
+        if hasattr(type_object,name):
             type_object = getattr(type_object,name)
         else:
             raise Exception("'{}' has no attribute '{}'.".format(type_object,name))
