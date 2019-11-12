@@ -1,6 +1,6 @@
 from django.forms.widgets import *
 from .widgets import (DisplayWidget,DisplayMixin,TextDisplay,FinancialYearDisplay,TextareaDisplay,ListDisplayFactory,
-        Hyperlink,HyperlinkFactory,TemplateDisplay,HtmlString,
+        TemplateDisplay,HtmlString,
         TemplateWidgetFactory,SwitchWidgetFactory,ChoiceWidgetFactory,SelectableSelect,
         DisplayWidgetFactory,ChoiceFieldRendererFactory,HtmlTag,ImgBooleanDisplay,CheckboxBooleanDisplay,TextBooleanDisplay,DropdownMenuSelectMultiple,
         NullBooleanSelect,AjaxWidgetFactory,HiddenInput,
