@@ -671,7 +671,11 @@ class HyperlinkMixin(MultiValueMixin):
         """
         Use the widget to render the field
         """
-        return self.widget.render(name,value,attrs=attrs,url=self.url(value,form,form.instance))
+        try:
+            url=self.url(value,form,form.instance)
+        except:
+            url = ""
+        return self.widget.render(name,value,attrs=attrs,url=url)
 
 
 def HyperlinkFieldFactory(model,field_name,url,field_class=None,**field_params):
@@ -691,7 +695,7 @@ def HyperlinkFieldFactory(model,field_name,url,field_class=None,**field_params):
         field_class.__module__,
         field_class.__name__,
         json.dumps(field_params,cls=JSONEncoder),
-        url)
+        json.dumps(url,cls=JSONEncoder))
     ))
     if class_key not in field_classes:
         class_id += 1
