@@ -210,17 +210,27 @@ class HyperlinkWidget(DisplayWidget):
     template = None
     def __init__(self,widget=TextDisplay,template=None):
         super(HyperlinkWidget,self).__init__(is_null=lambda value: value is None or value == "",extra_value=True)
-        self.widget = widget if isinstance(widget,forms.Widget) else widget()
+        if widget:
+            self.widget = widget if isinstance(widget,forms.Widget) else widget()
+        else:
+            self.widget = None
         if template:
             self.template = template
         else:
             self.template = "<a href='{url}' onclick='event.stopPropagation();'>{widget}</a>"
 
     def render(self,name,value,attrs=None,renderer=None,url=""):
-        if callable(self.template):
-            return self.template(value).format(url=url,widget=self.widget.render(name,value,attrs,renderer))
+        if self.widget:
+            if callable(self.template):
+                return self.template(value).format(url=url,widget=self.widget.render(name,value,attrs,renderer))
+            else:
+                return self.template.format(url=url,widget=self.widget.render(name,value,attrs,renderer))
         else:
-            return self.template.format(url=url,widget=self.widget.render(name,value,attrs,renderer))
+            if callable(self.template):
+                return self.template(value).format(url=url)
+            else:
+                return self.template.format(url=url)
+
 
 class Hyperlink(DataPreparationMixin,DisplayWidget):
     template = None
