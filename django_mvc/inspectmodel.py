@@ -677,7 +677,7 @@ class ModelDependencyTreeTableWidget(DisplayWidget):
     {% setvar path "_o2o_" as subpath %}
     {% for subtree in tree.one2one_subtrees %}
     <tr><td style="padding:0px 0px 0px {{widget.indent}}px;" >
-        {% call_method widget "_render" subtree next_level path=subpath %}
+        {% call_method widget "_render_tree" subtree next_level path=subpath %}
     </td></tr>
     {% endfor %}
     </tbody>
@@ -699,7 +699,7 @@ class ModelDependencyTreeTableWidget(DisplayWidget):
     {% setvar path "_o2m_" as subpath %}
     {% for subtree in tree.one2many_subtrees %}
     <tr><td style="padding:0px 0px 0px {{widget.indent}}px;">
-        {% call_method widget "_render" subtree next_level path=subpath %}
+        {% call_method widget "_render_tree" subtree next_level path=subpath %}
     </td></tr>
     {% endfor %}
     </tbody>
@@ -718,11 +718,11 @@ class ModelDependencyTreeTableWidget(DisplayWidget):
     expandlevel = 0
 
     def render(self,name,value,attrs=None,renderer=None):
-        output = self._render(value)
+        output = self._render_tree(value)
         #output = self.empty_line_re.sub("\n",output)
         return mark_safe(output)
         
-    def _render(self,tree,level=0,path=None):
+    def _render_tree(self,tree,level=0,path=None):
         if path:
             path = "{}__{}_{}".format(path,tree.tablename,tree.field)
         else:
@@ -821,7 +821,7 @@ class ObjectDependencyTreeTableWidget(DisplayWidget):
         <tbody id="{{path}}_o2o_{{subtree.0.tablename}}_{{subtree.0.field}}_body_" {% if widget.expandlevel <= level%}style="display:none"{% endif %}>
             <tr><td style="padding:0px 0px 0px {{widget.indent}}px;">
                 {% setvar path "_o2o_" subtree.0.tablename "_" subtree.0.field as subpath %}
-                {% call_method widget "_render" subtree.1 next_level path=subpath %}
+                {% call_method widget "_render_tree" subtree.1 next_level path=subpath %}
             </td></tr>
         </tbody>
     </table>
@@ -860,7 +860,7 @@ class ObjectDependencyTreeTableWidget(DisplayWidget):
             {% setvar path "_o2m_" subtrees.0.tablename "_" subtrees.0.field as subpath %}
             {% for subtree in subtrees.1 %}
             <tr><td style="padding:0px 0px 0px {{widget.indent}}px">
-                {% call_method widget "_render" subtree next_level path=subpath %}
+                {% call_method widget "_render_tree" subtree next_level path=subpath %}
             </td></tr>
             {% endfor %}
             </tbody>
@@ -884,11 +884,11 @@ class ObjectDependencyTreeTableWidget(DisplayWidget):
     expandlevel = 0
 
     def render(self,name,value,attrs=None,renderer=None):
-        output = self._render(value)
+        output = self._render_tree(value)
         #output = self.empty_line_re.sub("\n",output)
         return mark_safe(output)
         
-    def _render(self,tree,level=0,path=None):
+    def _render_tree(self,tree,level=0,path=None):
         if path:
             path = "{}__{}".format(path,tree.obj.pk)
         else:

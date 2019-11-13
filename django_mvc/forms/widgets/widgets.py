@@ -34,7 +34,7 @@ class NullValueMixin(object):
             self.is_null = lambda val : False if val else True
 
         self.null_value = mark_safe(self.null_value)
-        self._render = self.render
+        self._original_render = self.render
         if extra_value:
             self.render = self._render3
         else:
@@ -46,13 +46,13 @@ class NullValueMixin(object):
         if self.is_null(value):
             return self.null_value
         else:
-            return self._render(name,value,attrs=attrs,renderer=renderer)
+            return self._original_render(name,value,attrs=attrs,renderer=renderer)
     
     def _render3(self,name,value,attrs=None,renderer=None,**extra_values):
         if self.is_null(value):
             return self.null_value
         else:
-            return self._render(name,value,attrs=attrs,renderer=renderer,**extra_values)
+            return self._original_render(name,value,attrs=attrs,renderer=renderer,**extra_values)
     
 class DisplayMixin(object):
     """
@@ -370,7 +370,7 @@ class ChoiceDisplay(DisplayWidget):
     marked_safe = False
     coerce = None
             
-    def _render(self,name,value,attrs=None,renderer=None):
+    def _render_string(self,name,value,attrs=None,renderer=None):
         value = self.coerce(value)
         try:
             result = self.__class__.choices[value]
@@ -432,7 +432,7 @@ def ChoiceWidgetFactory(name,choices,marked_safe=False,data_format=1,coerce=None
         widget_class_id += 1
         class_name = "{}_{}".format(widget_class.__name__,name)
         if data_format == ChoiceWidgetFactory.STRING:
-            cls = type(class_name,(widget_class,),{"choices":choices,"marked_safe":marked_safe,"render":ChoiceDisplay._render,"coerce":coerce})
+            cls = type(class_name,(widget_class,),{"choices":choices,"marked_safe":marked_safe,"render":ChoiceDisplay._render_string,"coerce":coerce})
         elif data_format == ChoiceWidgetFactory.PATTERN:
             cls = type(class_name,(widget_class,),{"choices":choices,"marked_safe":marked_safe,"render":ChoiceDisplay._render_pattern,"coerce":coerce})
         else:
