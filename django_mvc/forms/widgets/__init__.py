@@ -6,7 +6,6 @@ from .widgets import (DisplayWidget,DisplayMixin,TextDisplay,FinancialYearDispla
         NullBooleanSelect,AjaxWidgetFactory,HiddenInput,
         FloatDisplay,IntegerDisplay,ObjectDisplay,
         FilteredSelect,FilesizeDisplay,
-        DataPreparationMixin,
         FormSetWidget,FormSetDisplayWidget,
         ListFormWidget,
         HyperlinkWidget)

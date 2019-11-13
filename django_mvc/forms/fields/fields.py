@@ -5,7 +5,7 @@ from django import forms
 from django.dispatch import receiver
 
 from django_mvc.signals import actions_inited,fields_inited
-from django_mvc.utils import ConditionalChoice,getallargs
+from django_mvc.utils import ConditionalChoice,getallargs,getclassmethodargs
 from .. import widgets
 from ..utils import hashvalue,JSONEncoder
 from .coerces import *
@@ -63,12 +63,9 @@ class FieldParametersMixin(object):
         #delete unwanted kwargs
         #if self.__class__.__name__ == "TypedMultipleChoiceField_18":
         #    import ipdb;ipdb.set_trace()
-        field_class = None
-        for cls in self.__class__.__bases__:
-            if issubclass(cls,forms.Field):
-                field_class = cls
-                break
-        method_args,method_kwargs = getallargs(field_class.__init__)
+        #if self.__class__.__name__ == "ModelChoiceField_22":
+        #    import ipdb;ipdb.set_trace()
+        method_args,method_kwargs = getclassmethodargs(self.__class__,"__init__")
         invalid_args = None
         for k in kwargs.keys():
             if k not in method_kwargs and k not in method_args:
@@ -102,7 +99,7 @@ class FieldParametersMixin(object):
 def init_field_params(field_class,field_params):
     field_kwargs = {}
     extra_fields = {}
-    method_args,method_kwargs = getallargs(field_class.__init__)
+    method_args,method_kwargs = getclassmethodargs(field_class,"__init__")
     for k,v in (field_params or {}).items():
         if k in method_args:
             field_kwargs[k] = v
@@ -641,7 +638,10 @@ class HyperlinkMixin(MultiValueMixin):
     @classmethod
     def _init_class(cls):
         while callable(cls.url):
-            method_args,method_kwargs = getallargs(cls.url)
+            try:
+                method_args,method_kwargs = getallargs(cls.url)
+            except:
+                raise
             if method_kwargs:
                 raise Exception("The url function({1}) of class ({0}) can't have keywordonly arguments".format(cls.__name__,cls.url))
             elif len(method_args) == 0 :

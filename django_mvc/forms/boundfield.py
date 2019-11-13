@@ -131,8 +131,6 @@ class BoundField(forms.boundfield.BoundField):
 
     @property
     def initial(self):
-        if hasattr(self.field.widget,"prepare_initial_data"):
-            return self.field.widget.prepare_initial_data(self.form,self.name)
         data = super(BoundField,self).initial
 
         #print("{}: {} = {}".format("view" if self.is_display else "edit",self.name ,data))
@@ -642,6 +640,11 @@ class ListBoundFieldMixin(object):
 
 class MultiValueBoundField(BoundField):
     def as_widget(self, widget=None, attrs=None, only_initial=False):
+        attrs = attrs or {}
+        attrs = self.build_widget_attrs(attrs, self.field.widget)
+        if self.auto_id and 'id' not in self.field.widget.attrs:
+            attrs.setdefault('id', self.html_initial_id if only_initial else self.auto_id)
+
         return self.field.render(self.form,self.name,self.value(),attrs=attrs)
  
 

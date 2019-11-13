@@ -547,10 +547,8 @@ class BaseFormMetaclassMixin(object):
         innerest_model_dbfield_name = None
 
         for field_name in opts.all_fields or []:
-            """
-            if name == 'DateRangeFilterForm':
-                import ipdb;ipdb.set_trace()
-            """
+            #if name == 'PrescribedBurnBushfireCreateForm' and field_name=='year':
+            #    import ipdb;ipdb.set_trace()
             model_dbfield = None
             property_name = None
             db_field = False
@@ -645,9 +643,6 @@ class BaseFormMetaclassMixin(object):
             if field_class and isinstance(field_class,forms.Field):
                 #already configure a form field instance, use it directly
                 field_class.form_declared = form_declared
-                #check whether widget requires subproperty support
-                if not subproperty_enabled and isinstance(field_class.widget,widgets.DataPreparationMixin) and field_class.widget.subproperty_enabled :
-                    subproperty_enabled = True
 
                 field_list.append((field_name, field_class))
                 continue
@@ -731,6 +726,8 @@ class BaseFormMetaclassMixin(object):
             if not db_field:
                 kwargs['required'] = False
 
+            #if name == 'PrescribedBurnBushfireCreateForm' and field_name=='year':
+            #    import ipdb;ipdb.set_trace()
             if not callable(formfield_callback):
                 raise TypeError('formfield_callback must be a function or callable')
             elif innerest_model:
@@ -747,13 +744,6 @@ class BaseFormMetaclassMixin(object):
                     formfield.field_prefix = prefix
                     #formfield.related_field_names = ["{}{}".format(prefix,f) for f in formfield.related_field_names]
 
-                if isinstance(formfield.widget,widgets.DataPreparationMixin):
-                    #add prefix to ids and parameters 
-                    if hasattr(formfield.widget,"ids") and formfield.widget.ids:
-                        formfield.widget.ids = [("{}{}".format(prefix,k),v) for k,v in formfield.widget.ids]
-                    if hasattr(formfield.widget,"parameters") and formfield.widget.parameters:
-                        formfield.widget.ids = [(k if k in ["request_full_path","loginuser"] else "{}{}".format(prefix,k),v) for k,v in formfield.widget.parameters]
-
             #check whether AliasField is only declared for non editable field.
             if not isinstance(formfield.widget,widgets.DisplayMixin) and isinstance(formfield,AliasFieldMixin) and formfield.field_name != field_name:
                 if model:
@@ -762,9 +752,6 @@ class BaseFormMetaclassMixin(object):
                     raise Exception("Can't declare alias({}) for editable field ({})".format(field_name,formfield.field_name))
 
             field_list.append((field_name, formfield))
-            #check whether widget requires subproperty support
-            if not subproperty_enabled and isinstance(formfield.widget,widgets.DataPreparationMixin) and formfield.widget.subproperty_enabled :
-                subproperty_enabled = True
 
             formfield.form_declared = form_declared
     

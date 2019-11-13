@@ -54,7 +54,7 @@ class NullValueMixin(object):
         else:
             return self._render(name,value,attrs=attrs,renderer=renderer,**extra_values)
     
-class DisplayMixin(NullValueMixin):
+class DisplayMixin(object):
     """
     A mixin to check whether a widget is a display widget or not.
     """
@@ -71,7 +71,7 @@ class DisplayMixin(NullValueMixin):
                 extra_attrs[k] = v
             return extra_attrs
 
-class DisplayWidget(DisplayMixin,forms.Widget):
+class DisplayWidget(NullValueMixin,DisplayMixin,forms.Widget):
     """
     A super class for display widget
     """
@@ -189,22 +189,6 @@ class FinancialYearDisplay(DisplayWidget):
         else:
             value = int(value)
             return "{}/{}".format(value,value+1)
-
-class DataPreparationMixin(object):
-    """
-    Provide extra object data to widget for rendering
-    """
-    #set to true if the widget need subproperty support; otherwise set to false
-    #this property used by form metadata class to set a property 'subproperty_enalbed' in form meta class to indicate whether the form class requires subproperty support or not; 
-    #when creating a form instance, a SubpropertyEnabledDict instance will be created to wrapper the intial model instance if subproperty_enabled is true
-    subproperty_enabled = False
-
-    def prepare_initial_data(self,form,name):
-        """
-        Called by bound field to provide extra data to widget render method
-        """
-        raise NotImplemented("Not implemented")
-
 
 class HyperlinkWidget(DisplayWidget):
     template = None
@@ -661,70 +645,28 @@ class AjaxWidgetMixin(object):
     """
     A widget mixin to implement ajax enabled html element.
     """
-    def render(self,name,value,attrs=None,renderer=None):
+    def render(self,name,value,attrs=None,renderer=None,url=""):
         if not attrs:
             attrs = {}
         for k,v in self.ajax_attrs.items():
-            attrs[k] = v.format(url=self.url)
+            attrs[k] = v.format(url=url)
 
         return super().render(name,value,attrs=attrs,renderer=renderer)
 
-class DynamicUrlAjaxWidgetMixin(DataPreparationMixin,object):
-    def prepare_initial_data(self,form,name):
-        value = form.initial.get(name)
-        kwargs = {}
-        for f in self.ids:
-            val = form.initial.get(f[0])
-            if val is None:
-                #can't find value for url parameter, no link can be generated
-                kwargs = None
-                break;
-            elif isinstance(val,models.Model):
-                kwargs[f[1]] = val.pk
-            else:
-                kwargs[f[1]] = val
-
-        if callable(self.url_name):
-            url_name = self.url_name(form.instance)
-        else:
-            url_name = self.url_name
-
-        if kwargs:
-            url = reverse(url_name,kwargs=kwargs)
-        else:
-            url = None
-
-        return (value,url)
-
-    def render(self,name,value,attrs=None,renderer=None):
-        if not attrs:
-            attrs = {}
-        for k,v in self.ajax_attrs.items():
-            attrs[k] = v.format(url=value[1])
-        return super().render(name,value[0],attrs=attrs,renderer=renderer)
-
-def AjaxWidgetFactory(widget_class,url_name,ids=None,data_func=None,method="post",editable=False,succeed=None,failed=None,js=None):
+def AjaxWidgetFactory(widget_class,data_func=None,method="post",succeed=None,failed=None,js=None):
     """
     Create ajax widget class
     widget: can be a widget class
     """
-    #if url_name == "report:prescription_pre_state_update":
-    #    import ipdb;ipdb.set_trace()
     global widget_class_id
 
     if js and isinstance(js,str):
         js = [js]
 
-    key = "{}AjaxWidget<{}>".format("DynamicUrl" if ids else "", hashvalue("AjaxWidget<{}.{}.{}{}{}{}{}{}{}{}>".format(widget_class.__module__,widget_class.__name__,url_name,ids,json.dumps(data_func,cls=JSONEncoder),method,editable,succeed,failed,js)))
+    key = "AjaxWidget<{}>".format(hashvalue("AjaxWidget<{}.{}.{}{}{}{}{}>".format(widget_class.__module__,widget_class.__name__,json.dumps(data_func,cls=JSONEncoder),method,succeed,failed,js)))
     cls = widget_classes.get(key)
     
     if not cls:
-        subproperty_enabled = False
-        if ids:
-            for k in ids:
-                if "__" in k[0]:
-                    subproperty_enabled = True
-
         widget_class_id += 1
         class_name = "{}_{}".format(widget_class.__name__,widget_class_id)
         if not succeed:
@@ -810,18 +752,9 @@ def AjaxWidgetFactory(widget_class,url_name,ids=None,data_func=None,method="post
         """.format(class_name=class_name,data_func=data_func,failed=failed,succeed=succeed,method=method)
         media = Media(statements=[ajax_func],js=js)
         ajax_class = None
-        if ids or callable(url_name):
-            attrs = {"media":media,"url_name":staticmethod(url_name) if callable(url_name) else url_name,"ids":ids or [],"data_func":data_func,"method":method,"ajax_attrs":ajax_attrs,"subproperty_enabled":subproperty_enabled}
-            ajax_class = DynamicUrlAjaxWidgetMixin
-        else:
-            def initialize(cls):
-                cls.url = reverse(cls.url_name)
-            attrs = {"media":media,"url_name":url_name,"__init_class":classmethod(initialize),"data_func":data_func,"method":method,"ajax_attrs":ajax_attrs}
-            ajax_class = AjaxWidgetMixin
-        if editable:
-            cls = type(class_name,(ajax_class,widget_class),attrs)
-        else:
-            cls = type(class_name,(DisplayMixin,ajax_class,widget_class),attrs)
+        attrs = {"media":media,"data_func":data_func,"method":method,"ajax_attrs":ajax_attrs}
+        ajax_class = AjaxWidgetMixin
+        cls = type(class_name,(ajax_class,widget_class),attrs)
 
         widget_classes[key] = cls
     return cls
