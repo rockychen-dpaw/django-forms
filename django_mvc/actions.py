@@ -16,8 +16,13 @@ class Action(object):
         self.tag_body = tag_body or action
         self.tag_attrs = tag_attrs or {}
         self.callable_attrs = None
+        self.cloned_actions = None
+        self.initialized = False
 
     def initialize(self):
+        if self.initialized:
+            return
+
         from django_mvc.forms import widgets
         if self.permission and callable(self.permission):
             self.permission = self.permission()
@@ -37,7 +42,6 @@ class Action(object):
         for k,v in default_attrs:
             if k not in self.tag_attrs:
                 self.tag_attrs[k] = v 
-
         if self.tag_attrs:
             for k in self.tag_attrs.keys():
                 if callable(self.tag_attrs[k]):
@@ -72,13 +76,25 @@ class Action(object):
         else:
             self.has_permission = self._check_permission
 
+        if self.cloned_actions:
+            for a in self.cloned_actions:
+                a.initialize()
+
+        self.initialized = True
+
 
     def clone(self,tag_attrs=None,tag_body=None):
         attrs = dict(self.tag_attrs)
         if tag_attrs:
             attrs.update(tag_attrs)
         action  = Action(self.action,tag=self.tag,tag_body=tag_body or self.tag_body,tag_attrs=attrs,permission=self.permission)
-        action.initialize()
+        if self.cloned_actions is None:
+            self.cloned_actions = [action]
+        else:
+            self.cloned_actions.append(action)
+
+        if self.initialized:
+            action.initialize()
         return action
 
     def _always_has_permission(self,user):
