@@ -8,6 +8,50 @@ from django.db import models
 from django.http.request import (QueryDict,)
 from django.utils.datastructures import (MultiValueDict,)
 
+def getclassmethodargs(cls,method_name,processed_classes=None):
+    func_kwonlyargs = []
+    func_args = []
+    varargs = True
+    varkw = True
+
+    processed_classes = processed_classes or set()
+
+    if method_name in cls.__dict__:
+        argspec = inspect.getfullargspec(getattr(cls,method_name))
+        #get the args introduced by current method
+        if argspec.args:
+            try:
+                for k in argspec.args if type(cls.__dict__[method_name]) == 'staticmethod' else argspec.args[1:]:
+                    func_args.append(k)
+            except:
+                for k in argspec.args :
+                    func_args.append(k)
+
+        #get the kwargs introduced by current method
+        if argspec.kwonlyargs:
+            for k in argspec.kwonlyargs:
+                func_kwonlyargs.append(k)
+
+        varargs = argspec.varargs
+        varkw = argspec.varkw
+
+
+    #get the args and kwargs introduced by parent class
+    if varkw or varargs:
+        for base_cls in cls.__bases__:
+            if base_cls not in processed_classes:
+                if base_cls != object and hasattr(base_cls,method_name) :
+                    base_args,base_kwonlyargs = getclassmethodargs(base_cls,method_name,processed_classes)
+                    if base_args and varargs:
+                        for k in base_args:
+                            if k not in func_args:
+                                func_args.append(k)
+                    if base_kwonlyargs and varkw:
+                        for k in base_kwonlyargs:
+                            if k not in func_kwonlyargs:
+                                func_kwonlyargs.append(k)
+                processed_classes.add(base_cls)
+    return (func_args,func_kwonlyargs)
 
 def getallargs(func):
     qualname = func.__qualname__
@@ -17,41 +61,13 @@ def getallargs(func):
         parent_name = "{}.{}".format(module_name,qualname.rsplit(".",1)[0])
         func_name = func.__name__
 
-        cls = get_type_object(parent_name)
-        if inspect.isclass(cls):
-            #it is a class method
-            argspec = inspect.getfullargspec(func)
-            func_kwargs = []
-            func_args = []
-            #get the args introduced by current method
-            if argspec.args:
-                try:
-                    for k in argspec.args if type(cls.__dict__[func_name]) == 'staticmethod' else argspec.args[1:]:
-                        func_args.append(k)
-                except:
-                    for k in argspec.args :
-                        func_args.append(k)
-
-            #get the kwargs introduced by current method
-            if argspec.kwonlyargs:
-                for k in argspec.kwonlyargs:
-                    func_kwargs.append(k)
-
-            #get the args and kwargs introduced by parent class
-            if argspec.varkw or argspec.varargs:
-                for base_cls in cls.__bases__:
-                    if base_cls != object and hasattr(base_cls,func_name):
-                        base_args,base_kwargs = getallargs(getattr(base_cls,func_name))
-                        if base_args and argspec.varargs:
-                            for k in base_args:
-                                if k not in func_args:
-                                    func_args.append(k)
-                        if base_kwargs and argspec.varkw:
-                            for k in base_kwargs:
-                                if k not in func_kwargs:
-                                    func_kwargs.append(k)
-
-            return (func_args,func_kwargs)
+        try:
+            cls = get_type_object(parent_name)
+            if inspect.isclass(cls) and hasattr(cls,func_name):
+                #it is a class method
+                return getclassmethodargs(cls,func_name)
+        except:
+            pass
 
     argspec = inspect.getfullargspec(func)
     return (argspec.args,argspec.kwonlyargs)
