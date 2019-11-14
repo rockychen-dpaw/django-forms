@@ -277,9 +277,6 @@ class RequestUrlMixin(RequestMixin):
     def nexturl(self):
         return self.requesturl.nexturl
 
-    def get_nexturl(self,nexturl):
-        return self.requesturl.get_nexturl(nexturl)
-
     def get_querystring(self,paramname,paramvalue=None):
         return self.requesturl.get_querystring(paramname,paramvalue)
 

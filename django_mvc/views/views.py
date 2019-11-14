@@ -544,22 +544,6 @@ class RequestUrl(object):
             
         return self._nexturl
 
-    def get_nexturl(self,nexturl):
-        """
-        append nexturl to current nexturls and return the final nexturl as a quoted string
-        """
-
-        #currently, don't support multiple nexturl
-        return quote(nexturl)
-
-        current_nexturl = self.nexturl
-        if not current_nexturl:
-            return quote(nexturl)
-        elif len(current_nexturl) == 1:
-            return quote("{};{}".format(current_nexturl[0],nexturl))
-        else:
-            return quote("{};{}".format(";".join(current_nexturl),nexturl))
-
     def get_querystring(self,paramname,paramvalue=None):
         """
         return if paramvalue is None, return the new querystring without the request parameter spefified by paramname
