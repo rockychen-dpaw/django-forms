@@ -178,7 +178,7 @@ class ModelDependencyTree(ProtectStatusMixin):
     status = "wait_initialize"
 
     template = Template("""
-{% load pbs_utils %}
+{% load mvc_utils %}
 {% if level == 0 %}
 -------------------------------------------------------------------------------------------------------------------------------------------
 {% endif %}
@@ -454,7 +454,7 @@ class ModelDependencyTree(ProtectStatusMixin):
 
 class ObjectDependencyTree(ProtectStatusMixin):
     template = Template("""
-{% load pbs_utils %}
+{% load mvc_utils %}
 {% if level == 0 %}
 -------------------------------------------------------------------------------------------------------------------------------------------
 {% endif %}
@@ -618,7 +618,7 @@ class ObjectDependencyTree(ProtectStatusMixin):
 
 class ModelDependencyTreeTableWidget(DisplayWidget):
     template = Template("""
-{% load pbs_utils %}
+{% load mvc_utils %}
 <table id="{{path}}_table_" style="width:100%;">
 <thead id="{{path}}_head_">
     <tr>
@@ -733,7 +733,7 @@ class ModelDependencyTreeTableWidget(DisplayWidget):
 
 class ObjectDependencyTreeTableWidget(DisplayWidget):
     template = Template("""
-{% load pbs_utils %}
+{% load mvc_utils %}
 <table id="{{path}}_table_" style="width:100%;">
 <thead id="{{path}}_head_">
     <tr>

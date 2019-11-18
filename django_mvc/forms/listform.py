@@ -1,6 +1,6 @@
 import collections
 
-from django import forms as django_mvc
+from django import forms as django_forms
 from django.forms.utils import ErrorList
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -18,7 +18,7 @@ from django_mvc.signals import forms_inited,listforms_inited,system_ready
 from django_mvc.models import DictMixin,ModelDictWrapper
 
 
-class ListDataForm(django_mvc.BaseForm,collections.Iterable):
+class ListDataForm(django_forms.BaseForm,collections.Iterable):
     def __init__(self,listform, data=None, files=None, auto_id='id_%s', prefix=None,
                  initial=None, error_class=ErrorList, label_suffix=None,
                  empty_permitted=False, field_order=None, use_required_attribute=None, renderer=None):
@@ -302,7 +302,7 @@ class InnerListFormTableTemplateMixin(forms.FormTemplateMixin):
                 "tr_style":styles["thead-tr_style"],
             }))
         template = """
-        {{% load pbs_utils %}}
+        {{% load mvc_utils %}}
         <table {table_style}>
             {title}
             {header}
@@ -343,7 +343,7 @@ class InnerListFormULTemplateMixin(forms.FormTemplateMixin):
                 del styles[key]
 
         template = """
-        {{% load pbs_utils %}}
+        {{% load mvc_utils %}}
         <ul style="list-style-type:square;{ul_style}">
         {{% for dataform in form %}}
             {{% for field in dataform %}}
@@ -355,7 +355,7 @@ class InnerListFormULTemplateMixin(forms.FormTemplateMixin):
 
         cls.template = Template(template)
     
-class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms.ModelFormMetaMixin,django_mvc.BaseForm,collections.Iterable,metaclass=ListModelFormMetaclass):
+class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms.ModelFormMetaMixin,django_forms.BaseForm,collections.Iterable,metaclass=ListModelFormMetaclass):
     """
     Use a form to display list data 
     used to display only
@@ -490,7 +490,7 @@ class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms
     def _check_form(self):
         try:
             self.check_form()
-        except django_mvc.ValidationError as e:
+        except django_forms.ValidationError as e:
             self.add_error(None, e)
 
     def check_form(self):

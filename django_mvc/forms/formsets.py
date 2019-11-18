@@ -430,7 +430,7 @@ def formset_factory(form, formset=FormSet, extra=1, can_order=False,
 
     if not template:
         template = """
-        {{% load pbs_utils %}}
+        {{% load mvc_utils %}}
         <table id="{0}_result_list" class="table table-striped table-condensed table-hober table-fixed-header">
             <thead>
                 <tr>
@@ -473,7 +473,7 @@ def formset_factory(form, formset=FormSet, extra=1, can_order=False,
 
     if not row_template:
         row_template = """
-        {% load pbs_utils %}
+        {% load mvc_utils %}
         {% for form in formset.template_forms %}<tr> 
             {% for field in form.boundfields %}
                 {% call_method_escape field "html" "<td {attrs}>{widget}</td>" %}
