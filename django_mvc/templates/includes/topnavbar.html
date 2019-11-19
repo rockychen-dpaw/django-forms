@@ -1,0 +1,15 @@
+{% if not user.is_anonymous %}
+<div class="container">
+  <div id="first-nav" class="nav-collapse collapse navbar-responsive-collapse">
+    <ul class="nav pull-right">
+      <li>
+        <a class="dropdown-toggle" data-toggle="dropdown" href="#">
+          Welcome,
+          <strong>{% filter force_escape %}{% firstof user.get_short_name user.get_username %}{% endfilter %}</strong>.
+          <b class="caret"></b>
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+{% endif %}
