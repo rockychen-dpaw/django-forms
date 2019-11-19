@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load admin_urls %}
+{% load mvc_utils %}
+
+{% block content %}
+<p>{{confirm_message}}</p>
+<form action="{{confirm_url}}" method="post">{% csrf_token %}
+{% if nexturl %}
+<input type="hidden" name="nexturl" value="{{nexturl}}">
+{% endif %}
+
+{% if listform|length == 1 %}
+    {% for dataform in listform %}
+        <input type="hidden" name="selectedpks" value="{{dataform.pk}}">
+        <table class="table">
+        <tbody>
+        {% for field in dataform %}
+            {% if field.form_field_name != 'delete'%}
+            <tr>
+                <th style="width:20%;test-aligh:righg">{{field.label}}</th>
+                <td>{{field}}</td>
+            </tr>
+            {% endif %}
+        {% endfor %}
+        {% if delete_type == "object" and dataform.instance.dependency_tree.has_dependency %}
+        <tr><td colspan=2 style="padding:0px">
+            {{dataform.instance.dependency_tree.html}}
+        {% endif %}
+        </td></tr>
+        </tbody>
+        </table>
+    {% endfor %}
+{% else %}
+<table class="table">
+<tbody>
+    {% for dataform in listform %}
+    <tr>
+        <th colspan=2><h4>{{listform.model_verbose_name|capfirst}} ({{dataform.instance.pk}}) details</h4> 
+            <input type="hidden" name="selectedpks" value="{{dataform.pk}}">
+        </th>
+    </tr>
+      {% for field in dataform %}
+        {% if field.form_field_name != 'delete'%}
+        <tr>
+            <th style="width:20%;test-aligh:righg">{{field.label}}</th>
+            <td>{{field}}</td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+
+      {% if delete_type == "object" and dataform.instance.dependency_tree.has_dependency %}
+      {{ dataform.instance.dependency_tree.html_table }}
+      {% endif %}
+    {% endfor %}
+</tbody>
+</table>
+{% endif %}
+
+<script type="text/javascript">
+function expandtree(selector,expand) {
+    if ($(this).hasClass("icon-plus")) {
+        //expand
+        $(this).removeClass("icon-plus").addClass("icon-minus")
+        $(selector).show()
+        expand = true
+    } else {
+        //expand
+        $(this).removeClass("icon-minus").addClass("icon-plus")
+        $(selector).hide()
+    }
+}
+</script>
+
+<div class="navbar navbar-fixed-bottom">
+  <div class="navbar-inner">
+    <div class="container">
+      <p class="pull-right">
+        {% for button in listform.buttons %}
+            {% call_method button "html" nexturl=nexturl %}
+        {% endfor %}
+      </p>
+    </div>
+  </div>
+</div>
+</form>
+{% endblock %}
+

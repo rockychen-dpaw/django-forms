@@ -1,0 +1,79 @@
+{% extends "list.html" %}
+{% load i18n %}
+{% load admin_urls %}
+{% load mvc_utils %}
+
+{% block extrastyle %}
+{{block.super}}
+<style>
+.myCollapse {
+      display: none;
+}
+.myCollapse.in {
+      display: table-row;
+}
+</style>
+{% endblock %}
+    
+{% block list_content%}
+<table id="{{listform.model_name_lower}}_result_list" class="table table-striped table-condensed table-hober table-fixed-header">
+    <thead>
+        {% block list_content_header%}
+        <tr>
+            {% if listform.has_actions_or_submit_buttons %}
+            <th><input type="checkbox" id="{{listform.model_name_lower}}_selector_header" onclick="{{listform.model_name_lower}}_selector.toggle_page_selection()"></th>
+            {% endif %}
+            {% for field in listform.boundfields %}
+            {% call_method field "html_header" "<th {attrs}><div class=\"text\"> {label}</div></th>"%}
+            {% endfor %}
+        </tr>
+        {% endblock %}
+    </thead>
+    <tbody>
+        {% block list_content_body%}
+        {% for dataform in listform %}
+        <tr class="row-vm" data-toggle="myCollapse" data-target="#{{dataform.instance.id}}">
+            {% if listform.has_actions_or_submit_buttons %}
+                <td><input type="checkbox" onclick="{{listform.model_name_lower}}_selector.select(this.checked);event.stopPropagation()" name="selectedpks" value="{{dataform.pk}}" {% if dataform.instance.pk in selectedpks %} checked {% endif %}></td>
+            {% endif %}
+            {% for field in dataform %}
+                {% call_method field "html" "<td {attrs}>{widget}</td>"%}
+            {% endfor %}
+        </tr>
+        <tr class="myCollapse row-details expand-child" id="{{dataform.instance.id}}">
+            <td colspan="{{listform.tablecolumns}}">
+              <table class="table table-bordered table-striped table-condensed">
+                <tbody>
+                    {% for detailrows in dataform.bounddetailrows %}
+                      <tr>
+                        {% for detailfield in detailrows %}
+                            {% call_method detailfield "html_header" "<th {attrs}><div class=\"text\"> {label}</div></th>"%}
+                            {% call_method detailfield "html" "<td {attrs}>{widget}</td>"%}
+                        {% endfor %}
+                      </tr>
+                    {% endfor %}
+                </tbody>
+              </table>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="{{listform.tablecolumns}}">There are no {{ listform.model_name_lower }}.</td>
+        </tr>
+        {% endfor %}
+        {% endblock %}
+    </tbody>
+</table>
+<script type="text/javascript">
+     $("[data-toggle=myCollapse]").click(function( ev ) {
+       ev.preventDefault();
+       var target;
+       if (this.hasAttribute('data-target')) {
+     target = $(this.getAttribute('data-target'));
+       } else {
+     target = $(this.getAttribute('href'));
+       };
+       target.toggleClass("in");
+     });
+</script>
+{% endblock %}

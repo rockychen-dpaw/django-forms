@@ -1,0 +1,111 @@
+{% load mvc_utils %}
+{% if messages|length > 0 %}
+
+{% setindex 0 as Index %}
+{% for message in messages %}
+   {% if 'error' in message.tags %}
+   {% if Index.index == 1 %}
+   <div id="page_messages" style="display:none">
+   {% endif %}
+
+   <div class="alert alert-error">
+       <i class="icon-warning-sign"></i>
+   {% if 'safe' in message.tags %}
+       {{ message|safe }}
+   {% else %}
+       {{ message }}
+   {% endif %}
+
+   {% if messages|length > 1 and Index.index == 0 %}
+   <div class="pull-right">
+   Total {{messages|length}} messages <i class="icon-plus" style="cursor:pointer;padding-left:20px" onclick="if ($(this).hasClass('icon-minus')) {$(this).removeClass('icon-minus').addClass('icon-plus');$('#page_messages').hide();} else {$(this).removeClass('icon-plus').addClass('icon-minus');$('#page_messages').show();}"></i>
+   </div>
+   {% endif %}
+   </div>
+   {% nextindex Index %}
+   {% endif %}
+{% endfor %}
+
+{% if messages|length > Index.index %}
+{% for message in messages %}
+   {% if 'warning' in message.tags %}
+   {% if Index.index == 1 %}
+   <div id="page_messages" style="display:none">
+   {% endif %}
+
+   <div class="alert alert-warning">
+       <i class="icon-warning-sign"></i>
+   {% if 'safe' in message.tags %}
+       {{ message|safe }}
+   {% else %}
+       {{ message }}
+   {% endif %}
+
+   {% if messages|length > 1 and Index.index == 0 %}
+   <div class="pull-right">
+   Total {{messages|length}} messages <i class="icon-plus" style="cursor:pointer;padding-left:20px" onclick="if ($(this).hasClass('icon-minus')) {$(this).removeClass('icon-minus').addClass('icon-plus');$('#page_messages').hide();} else {$(this).removeClass('icon-plus').addClass('icon-minus');$('#page_messages').show();}"></i>
+   </div>
+   {% endif %}
+   </div>
+   {% nextindex Index %}
+   {% endif %}
+{% endfor %}
+
+{% if messages|length > Index.index %}
+{% for message in messages %}
+   {% if 'success' in message.tags %}
+   {% if Index.index == 1 %}
+   <div id="page_messages" style="display:none">
+   {% endif %}
+
+   <div class="alert alert-success">
+       <i class="icon-ok-sign"></i>
+   {% if 'safe' in message.tags %}
+       {{ message|safe }}
+   {% else %}
+       {{ message }}
+   {% endif %}
+
+   {% if messages|length > 1 and Index.index == 0 %}
+   <div class="pull-right">
+   Total {{messages|length}} messages <i class="icon-plus" style="cursor:pointer;padding-left:20px" onclick="if ($(this).hasClass('icon-minus')) {$(this).removeClass('icon-minus').addClass('icon-plus');$('#page_messages').hide();} else {$(this).removeClass('icon-plus').addClass('icon-minus');$('#page_messages').show();}"></i>
+   </div>
+   {% endif %}
+   </div>
+   {% nextindex Index %}
+   {% endif %}
+{% endfor %}
+
+{% if messages|length > Index.index %}
+{% for message in messages %}
+   {% if 'info' in message.tags %}
+   {% if Index.index == 1 %}
+   <div id="page_messages" style="display:none">
+   {% endif %}
+
+   <div class="alert alert-info">
+       <i class="icon-info-sign"></i>
+   {% if 'safe' in message.tags %}
+       {{ message|safe }}
+   {% else %}
+       {{ message }}
+   {% endif %}
+
+   {% if messages|length > 1 and Index.index == 0 %}
+   <div class="pull-right">
+   Total {{messages|length}} messages <i class="icon-plus" style="cursor:pointer;padding-left:20px" onclick="if ($(this).hasClass('icon-minus')) {$(this).removeClass('icon-minus').addClass('icon-plus');$('#page_messages').hide();} else {$(this).removeClass('icon-plus').addClass('icon-minus');$('#page_messages').show();}"></i>
+   </div>
+   {% endif %}
+   </div>
+   {% nextindex Index %}
+   {% endif %}
+{% endfor %}
+
+
+{% if messages|length > 1 %}
+</div>
+{% endif%}
+{% endif%}
+{% endif%}
+{% endif%}
+{% endif%}

@@ -1,0 +1,63 @@
+{% load staticfiles %}<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="description" content="500 Internal Server error">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>500 Internal Server error</title>
+  <link rel="stylesheet" href="{% static "css/bootstrap.css" %}">
+  <link rel="stylesheet" href="{% static "css/bootstrap-responsive.css" %}">
+  <link rel="stylesheet" href="{% static "css/font-awesome.min.css" %}">
+  <link rel="stylesheet" href="{% static "css/fonts.css" %}">
+  <link rel="stylesheet" href="{% static "css/styles.css" %}">
+  <link rel="stylesheet" href="{% static "pbs/css/styles.css" %}">
+</head>
+<body>
+<div class="topmast">
+  <div class="container">
+    <div class="masthead">
+      <div class="row-fluid">
+        <div class="span8">
+          <div class="agency-freespace">
+            <a class="brand pull-left">
+              <img src="{% static 'pbs/img/waTextBlack_80-bluebg.gif' %}" alt="Government of Western Australia" />
+            </a>
+            <h1 id="site-title" class="site-logo pull-left">
+                <img src="{% static 'pbs/img/logo-dpaw.gif' %}" alt="Department of Parks and Wildlife" />
+                Department of <br><strong>Parks and Wildlife</strong>
+            </h1>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="page">
+  <div class="page-container">
+    <div class="container">
+    <div class="row">
+      <div class="span12">
+        <h3>Internal server error</h3>
+        <p>We have encountered a problem processing your request.</p>
+        {% if request.sentry.id %}
+        <p>If you need assistance, contact <a href="mailto:support@dpaw.wa.gov.au">support@dpaw.wa.gov.au</a>.
+        Please include details specific to what you were trying to do and the steps to take to reproduce this error.</p>
+        <p>We automatically log every error, but your assistance is invaluable to fixing the problem.
+        You may reference this error as: <strong>{{ request.sentry.id }}</strong>.</p>
+        {% endif %}
+        <a href="javascript: history.go(-1)" class="btn btn-danger">Go back</a>
+      </div>
+    </div>
+    </div>
+  </div>
+</div>
+<footer class="footer">
+  <div class="container-fluid">
+    <div class="span12">
+    <p class="pull-right">&copy; 2013 Department of Parks and Wildlife</p>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

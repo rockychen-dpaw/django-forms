@@ -1,0 +1,30 @@
+{% load mvc_utils %}
+
+<div style="display:inline-block;float:right">
+<span class="action-counter" id="total_{{listform.model_name_lower}}_selected"><span id="total_{{listform.model_name_lower}}_selected_count">0</span> of {{object_list_length}} selected</span>
+
+{% if paginator and object_list_length < paginator.count %}
+<span class="all" style="display: none;" id="all_{{listform.model_name_lower}}_selected">All {{paginator.count}} selected</span>
+<span class="question" style="display: none;" id="select_all_{{listform.model_name_lower}}">
+    <a href="javascript:{{listform.model_name_lower}}_selector.select_all();" title="Click here to select the objects across all pages">Select all {{paginator.count}} {{listform.model_verbose_name}}</a>
+</span>
+<span class="clear" style="display: none;" id="clean_{{listform.model_name_lower}}_selection"><a href="javascript:{{listform.model_name_lower}}_selector.clean();">Clear selection</a></span>
+<input type="hidden" name="select_all" value="true" id="{{listform.model_name_lower}}_select_all" disabled>
+
+{% for field in filterform %}
+    {% call_method field "html" template="" method="as_hidden" %}
+{% endfor %}
+
+{% endif %}
+</div>
+<script type="text/javascript">
+    var {{listform.model_name_lower}}_selector = null;
+    $(document).ready(function() {
+
+        {% if paginator %}
+        {{listform.model_name_lower}}_selector = new ListSelector("{{listform.model_name_lower}}",{{object_list_length}},{{paginator.count}},{{selectedpks|length}},{{select_all}})
+        {% else %}
+        {{listform.model_name_lower}}_selector = new ListSelector("{{listform.model_name_lower}}",{{object_list_length}},{{object_list_length}},{{selectedpks|length}},{{select_all}})
+        {% endif %}
+    })
+</script>

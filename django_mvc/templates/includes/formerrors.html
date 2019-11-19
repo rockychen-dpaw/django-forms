@@ -1,0 +1,13 @@
+{% if errortitle  %}
+<div class="errornote alert alert-block alert-error fade in">
+<p >
+    {{errortitle}}
+</p>
+{% if non_field_errors %}
+{% for error in non_field_errors %}
+<p class='text-error' style="margin-left:10px"><i class='icon-warning-sign'></i>{{ error }}</p>
+{% endfor %}
+{% endif %}
+</div>
+{% endif %}
+

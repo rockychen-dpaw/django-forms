@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load admin_urls %}
+{% load mvc_utils %}
+
+{% block content %}
+<p>{{confirm_message}}</p>
+<form action="{{confirm_url}}" method="post">{% csrf_token %}
+{% if nexturl %}
+<input type="hidden" name="nexturl" value="{{nexturl}}">
+{% endif %}
+
+{% if listform|length == 1 %}
+    {% for dataform in listform %}
+        <input type="hidden" name="selectedpks" value="{{dataform.pk}}">
+        <table class="table">
+        <tbody>
+        {% for field in dataform %}
+            {% if field.form_field_name != 'delete'%}
+            <tr>
+                <th>{{field.label}}</th>
+                <td>{{field}}</td>
+            </tr>
+            {% endif %}
+        {% endfor %}
+        </tbody>
+        </table>
+    {% endfor %}
+{% else %}
+<table class="table">
+<tbody>
+    {% for dataform in listform %}
+    <tr>
+        <th colspan=2><h4>{{listform.model_verbose_name|capfirst}} ({{dataform.instance.pk}}) details</h4> 
+            <input type="hidden" name="selectedpks" value="{{dataform.pk}}">
+        </th>
+    </tr>
+      {% for field in dataform %}
+        {% if field.form_field_name != 'delete'%}
+        <tr>
+            <th>{{field.label}}</th>
+            <td>{{field}}</td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+</tbody>
+</table>
+{% endif %}
+
+<div class="navbar navbar-fixed-bottom">
+  <div class="navbar-inner">
+    <div class="container">
+      <p class="pull-right">
+        {% for button in listform.buttons %}
+            {% call_method button "html" nexturl=nexturl %}
+        {% endfor %}
+      </p>
+    </div>
+  </div>
+</div>
+</form>
+{% endblock %}
+

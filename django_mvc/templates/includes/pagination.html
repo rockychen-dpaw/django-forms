@@ -1,0 +1,47 @@
+{% load mvc_utils %}
+{% if is_paginated %}
+<div class="pagination">
+  <ul>
+  {% if paginator.num_pages <= 15 %}
+    {% for i in paginator.page_range %}
+        {% if page_obj.number == i %}
+            <li class="active"><a>{{i}}</a></li>
+        {% else %}
+            <li><a href="{% call_method requesturl 'querystring' page=i %}">{{i}}</a></li>
+        {% endif %}
+    {% endfor %}
+  {% else %}
+    {% for i in paginator.page_range %}
+        {% if page_obj.number == i %}
+            <li class="active"><a>{{i}}</a></li>
+        {% elif i == 1 %}
+            <li><a href="{% call_method requesturl 'querystring' page=i %}">{{i}}</a></li>
+        {% elif i == paginator.num_pages %}
+            <li><a href="{% call_method requesturl 'querystring' page=i %}">{{i}}</a></li>
+        {% elif page_obj.number <= 10 %}
+            {% if i <= 13  %}
+                <li><a href="{% call_method requesturl 'querystring' page=i %}">{{i}}</a></li>
+            {% elif i == 14 %}
+                <li class="disabled"><a >...</a></li>
+            {% endif %}
+        {% elif page_obj.number >= paginator.num_pages|add:-9 %}
+            {% if i >= paginator.num_pages|add:-12  %}
+                <li><a href="{% call_method requesturl 'querystring' page=i %}">{{i}}</a></li>
+            {% elif i == paginator.num_pages|add:-13 %}
+                <li class="disabled"><a >...</a></li>
+            {% endif %}
+        {% else %}
+            {% if i == 2 %}
+                <li class="disabled"><a >...</a></li>
+            {% elif i == paginator.num_pages|add:-1 %}
+                <li class="disabled"><a >...</a></li>
+            {% elif i >= page_obj.number|add:-5  and i <= page_obj.number|add:5 %}
+                <li><a href="{% call_method requesturl 'querystring' page=i %}">{{i}}</a></li>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+  {% endif %}
+  </ul>
+</div>
+{{ paginator.count }} {% if paginator.count == 1 %}{{ listform.model_verbose_name }}{% else %}{{ listform.model_verbose_name_plural }}{% endif %}
+{% endif %}
