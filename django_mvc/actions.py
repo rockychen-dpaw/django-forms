@@ -292,8 +292,27 @@ class DynamicAction(Action):
         else:
             return self.widget.render(self.extra_attrs)
 
-BUTTON_ACTIONS = {}
-OPTION_ACTIONS = {}
+BUTTON_ACTIONS = {
+    "save":Action("save","button","Save",{"class":"btn btn-primary btn-success","type":"submit"}),
+    "select":Action("select","button","Select",{"class":"btn btn-primary btn-success","type":"submit",}),
+    "cancel":Action("cancel","a","Cancel",{
+        "class":"btn btn-danger",
+        "onclick":lambda nexturl: "window.location='{}';".format(nexturl) if nexturl else "history.go(-1);" 
+    }),
+    "upload":Action("upload","button","Upload",{"class":"btn btn-success","type":"submit"}),
+    "download":Action("download","button","Download",{"class":"btn btn-success btn-block","type":"submit","style":"width:260px"}),
+    "deleteconfirm":Action("delete","button","Delete",{"class":"btn btn-success btn-block","type":"submit","style":"width:260px"}),
+    "deleteconfirmed":Action("deleteconfirm","button","Yes,I'm sure",{"class":"btn btn-success btn-block","type":"submit","style":"width:260px"}),
+    "archiveconfirm":Action("archive","button","Archive",{"class":"btn btn-success btn-block","type":"submit","style":"width:260px"}),
+    "archiveconfirmed":Action("archiveconfirm","button","Archive",{"class":"btn btn-success btn-block","type":"submit","style":"width:260px"}),
+    "close":Action("close","button","Close",{"class":"btn btn-success","type":"submit"}),
+    "update_filter":Action("search","button","Update",{"class":"btn btn-success btn-block","type":"submit","style":"width:100px"}),
+}
+OPTION_ACTIONS = {
+    "empty_action":Action("","option","----------"),
+    "delete_selected_documents":Action("deleteconfirm","option","Delete selected documents",permission="prescription.delete_prescription"),
+    "archive_selected_documents":Action("archiveconfirm","option","Archive selected documents",permission="document.archive_document"),
+}
 
 @receiver(django_inited)
 def initialize_actions(sender,**kwargs):
