@@ -1,0 +1,41 @@
+{% extends "list_2panels.html" %}
+{% load i18n %}
+{% load mvc_utils %}
+
+{% block breadcrumbs %}
+{% endblock %}
+
+
+{% block rightpanel %}
+  <h5>Filter</h5>
+    <form id="changelist-search" action="" method="get">
+        {% for field in filterform %}
+            {% if not field.is_hidden or field.hascleanvalue %}
+                {% call_method field "html"  %}
+            {% endif %}
+        {% endfor %}
+    </form>
+
+  {% url 'django_auth:user_list' as usersurl %}
+
+  {% setvar filterform.is_active.cleanvalue as is_active %}
+  {% call_method listform "get_querystring" "is_active" as querystring %}
+  <ul class="nav nav-list">
+    <li class="nav-header">BY ACTIVE</li>
+    <li {% if is_active is None %}class="active"{% endif %}><a href="{{usersurl}}{{querystring}}">All</a></li>
+    {% for option in activestatuslist %}
+    <li  {% if is_active == option.0 %}class="active"{% endif %}><a href="{{usersurl}}{% addurlparameter querystring "is_active" option.0|urlencode %}">{{option.1}}</a></li>
+    {% endfor %}
+  </ul>
+  <br>
+  {% setvar filterform.groupid.cleanvalue as groupid %}
+  {% call_method listform "get_querystring" "groupid" as querystring %}
+  <ul class="nav nav-list">
+    <li class="nav-header">BY GROUPS</li>
+    <li {% if groupid is None %}class="active"{% endif %}><a href="{{usersurl}}{{querystring}}">All</a></li>
+    {% for option in grouplist %}
+    <li  {% if groupid == option.0 %}class="active"{% endif %}><a href="{{usersurl}}{% addurlparameter querystring "groupid" option.0|urlencode %}">{{option.1}}</a></li>
+    {% endfor %}
+  </ul>
+{% endblock %}
+

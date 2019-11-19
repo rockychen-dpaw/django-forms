@@ -1,0 +1,15 @@
+{% extends "changeform.html" %}
+{% load i18n %}
+{% load staticfiles admin_modify %}
+{% comment%}
+{% load admin_urls admin_list %}
+
+{% endcomment%}
+{% block breadcrumbs %}
+<ul class="breadcrumb">
+  <li><a href="{% url 'prescription:prescription_list' %}">{% trans 'Regional Overview' %}</a> <span class="divider">/</span></li>
+  <li><a href="{% url 'django_auth:user_list' %}">Manage Users</a> <span class="divider">/</span></li>
+  <li><a href="">{{object.username}}</a> </li>
+</ul>
+{% endblock %}
+
