@@ -300,13 +300,13 @@ BUTTON_ACTIONS = {
         "onclick":lambda nexturl: "window.location='{}';".format(nexturl) if nexturl else "history.go(-1);" 
     }),
     "upload":Action("upload","button","Upload",{"class":"btn btn-success","type":"submit"}),
-    "download":Action("download","button","Download",{"class":"btn btn-success btn-block","type":"submit","style":"width:260px"}),
-    "deleteconfirm":Action("delete","button","Delete",{"class":"btn btn-success btn-block","type":"submit","style":"width:260px"}),
-    "deleteconfirmed":Action("deleteconfirm","button","Yes,I'm sure",{"class":"btn btn-success btn-block","type":"submit","style":"width:260px"}),
-    "archiveconfirm":Action("archive","button","Archive",{"class":"btn btn-success btn-block","type":"submit","style":"width:260px"}),
-    "archiveconfirmed":Action("archiveconfirm","button","Archive",{"class":"btn btn-success btn-block","type":"submit","style":"width:260px"}),
+    "download":Action("download","button","Download",{"class":"btn btn-success","type":"submit","style":"width:260px"}),
+    "deleteconfirm":Action("delete","button","Delete",{"class":"btn btn-success","type":"submit"}),
+    "deleteconfirmed":Action("deleteconfirm","button","Yes,I'm sure",{"class":"btn btn-success","type":"submit"}),
+    "archiveconfirm":Action("archive","button","Archive",{"class":"btn btn-success","type":"submit"}),
+    "archiveconfirmed":Action("archiveconfirm","button","Archive",{"class":"btn btn-success","type":"submit"}),
     "close":Action("close","button","Close",{"class":"btn btn-success","type":"submit"}),
-    "update_filter":Action("search","button","Update",{"class":"btn btn-success btn-block","type":"submit","style":"width:100px"}),
+    "update_filter":Action("search","button","Update",{"class":"btn btn-success","type":"submit","style":"width:100px"}),
 }
 OPTION_ACTIONS = {
     "empty_action":Action("","option","----------"),

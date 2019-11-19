@@ -16,6 +16,7 @@ from . import fields
 from .utils import SubpropertyEnabledDict
 from django_mvc.signals import forms_inited,listforms_inited,system_ready
 from django_mvc.models import DictMixin,ModelDictWrapper
+from django_mvc.actions import BUTTON_ACTIONS
 
 
 class ListDataForm(django_forms.BaseForm,collections.Iterable):
@@ -559,6 +560,64 @@ class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms
 
     def as_table(self):
         raise NotImplementedError()
+
+class ConfirmMixin(object):
+    DELETE = 1
+    ARCHIVE = 2
+    confirm_action = DELETE
+
+    ACTIONS = {
+        DELETE : [BUTTON_ACTIONS["deleteconfirmed"],BUTTON_ACTIONS["cancel"]],
+        ARCHIVE : [BUTTON_ACTIONS["archiveconfirmed"],BUTTON_ACTIONS["cancel"]],
+    }
+
+
+    CONFIRM_CLASSES = {}
+
+    def __init__(self,confirm_action = None,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        if confirm_action:
+            self.confirm_action = confirm_action
+
+
+    @property
+    def all_buttons(self):
+        if self.confirm_action == self.DELETE:
+            return [BUTTON_ACTIONS["deleteconfirmed"],BUTTON_ACTIONS["cancel"]]
+        elif self.confirm_action == self.ARCHIVE:
+            return [BUTTON_ACTIONS["archiveconfirmed"],BUTTON_ACTIONS["cancel"]]
+        else:
+            return [BUTTON_ACTIONS["cancel"]]
+
+    @classmethod
+    def get_confirmclass(cls,formcls,action):
+        if action in ["deleteconfirm","archiveconfirm"]:
+            try:
+                return cls.CONFIRM_CLASSES[formcls]
+            except:
+                if issubclass(formcls,ConfirmMixin):
+                    cls.CONFIRM_CLASSES[formcls] = formcls
+                else:
+                    #don't have a confirm class,try to dynamically create one for it.
+                    if formcls.__name__.endswith("ListForm"):
+                        class_name = "{}ConfirmListForm".format(formcls.__name__[:-len("ListForm")])
+                    elif formcls.__name__.endswith("Form"):
+                        class_name = "{}ConfirmForm".format(formcls.__name__[:-len("Form")])
+                    else:
+                        class_name = "{}Confirm".format(formcls.__name__)
+                    #create a empty Meta class which will get all the data from base class.
+                    class _Meta(object):
+                        pass
+                    confirmclass = type(class_name,(ConfirmMixin,formcls),{"Meta":_Meta})
+                    #initialize the created confirm class
+                    confirmclass.post_init()
+                    cls.CONFIRM_CLASSES[formcls] = confirmclass
+
+                return cls.CONFIRM_CLASSES[formcls]
+        else:
+            return formcls
+
+
 
 @receiver(forms_inited)
 def init_listforms(sender,**kwargs):

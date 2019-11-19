@@ -15,7 +15,7 @@ from urllib.parse import quote
 from django_mvc.forms.utils import ChainDict,Media
 from django_mvc.forms.formsets import FormSet
 from django_mvc.forms.forms import RequestUrlMixin
-from django_mvc.forms.listform import ListForm
+from django_mvc.forms.listform import ListForm,ConfirmMixin
 from django_mvc.inspectmodel import (ObjectDependencyTree,ModelDependencyTree)
 import django_mvc.actions
 
@@ -1092,10 +1092,17 @@ class ListBaseView(UrlpatternsMixin,ModelMixin,RequestActionMixin,UserMessageMix
             raise Exception("Please choose at least one {} to continue.".format(self.model_verbose_name))
 
     def get_listform_kwargs(self):
-        return {"instance_list":self.object_list,"request":self.request,"requesturl" :self.requesturl}
+        if self.action == "deleteconfirm" and self.is_action_valid:
+            return {"instance_list":self.object_list,"request":self.request,"requesturl" :self.requesturl,"confirm_action":ConfirmMixin.DELETE}
+        elif self.action == "archiveconfirm" and self.is_action_valid:
+            return {"instance_list":self.object_list,"request":self.request,"requesturl" :self.requesturl,"confirm_action":ConfirmMixin.ARCHIVE}
+        else:
+            return {"instance_list":self.object_list,"request":self.request,"requesturl" :self.requesturl}
 
     def get_listform(self):
-        form_class = self.get_listform_class()
+        #try to get a confirm list class if required.
+        #The only difference between confirm list class and list class is confirm list class has a ConfirmMixin which provide the default required buttons.
+        form_class = ConfirmMixin.get_confirmclass(self.get_listform_class(),self.action)
         if form_class:
             return form_class(**self.get_listform_kwargs())
         else:
