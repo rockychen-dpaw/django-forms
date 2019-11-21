@@ -19,7 +19,7 @@ from django_mvc.models import DictMixin,ModelDictWrapper
 from django_mvc.actions import BUTTON_ACTIONS
 
 
-class ListDataForm(django_forms.BaseForm,collections.Iterable):
+class ListMemberForm(django_forms.BaseForm,collections.Iterable):
     def __init__(self,listform, data=None, files=None, auto_id='id_%s', prefix=None,
                  initial=None, error_class=ErrorList, label_suffix=None,
                  empty_permitted=False, field_order=None, use_required_attribute=None, renderer=None):
@@ -169,7 +169,7 @@ class ListModelFormMetaclass(forms.BaseModelFormMetaclass,collections.Iterable._
     def __new__(mcs, name, bases, attrs):
         if 'Meta' in attrs :
             for item,default_value in [('asc_sorting_html_class','headerSortUp'),('desc_sorting_html_class','headerSortDown'),('sorting_html_class','headerSortable'),
-                    ('toggleable_fields',None),('default_toggled_fields',None),('sortable_fields',None),('listdataform',ListDataForm)]:
+                    ('toggleable_fields',None),('default_toggled_fields',None),('sortable_fields',None),('listmemberform',ListMemberForm)]:
                 if not hasattr(attrs['Meta'],item):
                     config = forms.BaseModelFormMetaclass.get_meta_property_from_base(bases,item)
                     if config:
@@ -183,7 +183,7 @@ class ListModelFormMetaclass(forms.BaseModelFormMetaclass,collections.Iterable._
         if not opts or not meta:
             return new_class
 
-        for item in ['asc_sorting_html_class','desc_sorting_html_class','sorting_html_class','toggleable_fields','default_toggled_fields','sortable_fields','listdataform']:
+        for item in ['asc_sorting_html_class','desc_sorting_html_class','sorting_html_class','toggleable_fields','default_toggled_fields','sortable_fields','listmemberform']:
             if hasattr(meta,item) :
                 setattr(opts,item,getattr(meta,item))
             else:
@@ -400,7 +400,7 @@ class ListForm(ListFormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms.M
         #set index to one position before the start position. because we need to call next() before getting the first data 
         self.index = -1
         self.parent_instance = parent_instance
-        self.dataform = self._meta.listdataform(self)
+        self.dataform = self._meta.listmemberform(self)
         if self._meta.subproperty_enabled:
             self.current_instance = SubpropertyEnabledDict({})
 
