@@ -58,6 +58,10 @@ class ListMemberForm(django_forms.BaseForm,collections.Iterable):
         return self.listform.boundfields
 
     @property
+    def bounddetailrows(self):
+        return self.listform.bounddetailrows
+
+    @property
     def fields(self):
         return self.listform.fields
 
@@ -164,11 +168,12 @@ class ListModelFormMetaclass(forms.BaseModelFormMetaclass,collections.Iterable._
     Support list reslated features
     1. toggleable_fields to declare toggleable fields
     2. default_toggled_fields to declare default toggled fields
+    3. detail_fields to declare the detailed fields which will open when user clicks on the row. detail_fields should be a 2 dimension list.
     """
     
     def __new__(mcs, name, bases, attrs):
         if 'Meta' in attrs :
-            for item,default_value in [('asc_sorting_html_class','headerSortUp'),('desc_sorting_html_class','headerSortDown'),('sorting_html_class','headerSortable'),
+            for item,default_value in [('asc_sorting_html_class','headerSortUp'),('desc_sorting_html_class','headerSortDown'),('sorting_html_class','headerSortable'),('detail_fields',[]),
                     ('toggleable_fields',None),('default_toggled_fields',None),('sortable_fields',None),('listmemberform',ListMemberForm)]:
                 if not hasattr(attrs['Meta'],item):
                     config = forms.BaseModelFormMetaclass.get_meta_property_from_base(bases,item)
@@ -418,6 +423,10 @@ class ListForm(ListFormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms.M
     @property
     def boundfields(self):
         return boundfield.BoundFieldIterator(self)
+
+    @property
+    def bounddetailrows(self):
+        return boundfield.BoundFieldIterator(self,fields=self.Meta.detail_fields,multirows=True)
 
     @property
     def haslistfooter(self):
