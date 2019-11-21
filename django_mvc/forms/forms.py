@@ -1858,6 +1858,9 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
     
             
 class ModelForm(ActionMixin,RequestUrlMixin,BaseModelForm):
+    """
+    A base class for model form
+    """
     pass
 
 @receiver(widgets_inited)

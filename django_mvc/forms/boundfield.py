@@ -11,18 +11,6 @@ from django.utils import safestring
 from . import widgets
 from . import fields
 
-class FormBoundFieldIterator(collections.Iterable):
-    def __init__(self,form):
-        self.form = form
-        self._iter = None
-
-    def __iter__(self):
-        self._iter = self.fields.keys()
-        return self
-
-    def __next__(self):
-        return self.form[next(self._iter)]
-
 class BoundFieldIterator(collections.Iterable):
     def __init__(self,form,fields=None,multirows=False):
         self.form = form
