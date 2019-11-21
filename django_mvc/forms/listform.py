@@ -356,7 +356,29 @@ class InnerListFormULTemplateMixin(forms.FormTemplateMixin):
 
         cls.template = Template(template)
     
-class ListForm(forms.FormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms.ModelFormMetaMixin,django_forms.BaseForm,collections.Iterable,metaclass=ListModelFormMetaclass):
+class ListFormInitMixin(forms.FormInitMixin):
+    @classmethod
+    def post_init(cls):
+        super().post_init()
+        #find all fields which are required to call 'set_data' method to set the boundfield's data when listform's cursor is moved.
+        fields = []
+        for name,field in cls.total_fields.items():
+            try:
+                if hasattr(field.listboundfield_class,"set_data"):
+                    fields.append(name)
+            except:
+                import ipdb;ipdb.set_trace()
+                raise;
+
+        #set __next__ to the suitable method
+        if fields:
+            cls._set_data_fields = fields
+            cls.__next__ = cls.__next2__
+        else:
+            cls.__next__ = cls.__next1__
+
+
+class ListForm(ListFormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms.ModelFormMetaMixin,django_forms.BaseForm,collections.Iterable,metaclass=ListModelFormMetaclass):
     """
     Use a form to display list data 
     used to display only
@@ -611,6 +633,8 @@ class ConfirmMixin(object):
                     confirmclass = type(class_name,(ConfirmMixin,formcls),{"Meta":_Meta})
                     #initialize the created confirm class
                     confirmclass.post_init()
+                    if issubclass(confirmclass,FormTemplateMixin):
+                        confirmclass.init_template()
                     cls.CONFIRM_CLASSES[formcls] = confirmclass
 
                 return cls.CONFIRM_CLASSES[formcls]
@@ -621,26 +645,6 @@ class ConfirmMixin(object):
 
 @receiver(forms_inited)
 def init_listforms(sender,**kwargs):
-    for cls in forms._formclasses:
-        if not issubclass(cls,ListForm):
-            continue
-        #find all fields which are required to call 'set_data' method to set the boundfield's data when listform's cursor is moved.
-        fields = []
-        for name,field in cls.total_fields.items():
-            try:
-                if hasattr(field.listboundfield_class,"set_data"):
-                    fields.append(name)
-            except:
-                import ipdb;ipdb.set_trace()
-                raise;
-
-        #set __next__ to the suitable method
-        if fields:
-            cls._set_data_fields = fields
-            cls.__next__ = cls.__next2__
-        else:
-            cls.__next__ = cls.__next1__
-
     listforms_inited.send(sender="listforms")
 
 
