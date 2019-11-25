@@ -25,7 +25,7 @@ from . import boundfield
 from .fields import (CompoundField,FormField,FormSetField,AliasFieldMixin)
 
 from .utils import FieldClassConfigDict,FieldWidgetConfigDict,FieldLabelConfigDict,SubpropertyEnabledDict,ChainDict,Media,NoneValueKey
-from ..models import DictMixin,AuditMixin,ModelDictWrapper
+from ..models import DictMixin,Audit,ModelDictWrapper
 from django_mvc.signals import widgets_inited,forms_inited
 from django_mvc.utils import load_module,is_equal
 
@@ -485,9 +485,9 @@ class BaseFormMetaclassMixin(object):
 
         model = opts.model if hasattr(opts,"model") else None
         if model:
-            #try to add AuditMixin related fields into extra_update_fields.
+            #try to add Audit related fields into extra_update_fields.
             if meta.editable_fields is None or meta.editable_fields:
-                if issubclass(model,AuditMixin):
+                if issubclass(model,Audit):
                     for f in ("modifier","modified"):
                         if f not in opts.extra_update_fields:
                             if not isinstance(opts.extra_update_fields,list):

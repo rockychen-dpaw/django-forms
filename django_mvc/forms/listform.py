@@ -20,6 +20,10 @@ from django_mvc.actions import BUTTON_ACTIONS
 
 
 class ListMemberForm(django_forms.BaseForm,collections.Iterable):
+    """
+    Used by ListForm to render the list data
+    This form will directly use the fields and boundfields from list form, and no need to create its own fields and boundfields.
+    """
     def __init__(self,listform, data=None, files=None, auto_id='id_%s', prefix=None,
                  initial=None, error_class=ErrorList, label_suffix=None,
                  empty_permitted=False, field_order=None, use_required_attribute=None, renderer=None):
@@ -120,6 +124,10 @@ class ListMemberForm(django_forms.BaseForm,collections.Iterable):
         return self.listform.requesturl.get_querystring(paramname,paramvalue)
 
     @property
+    def nexturl(self):
+        return self.listform.requesturl.nexturl
+
+    @property
     def pk(self):
         return self.initial.pk
 
@@ -156,6 +164,9 @@ class ListMemberForm(django_forms.BaseForm,collections.Iterable):
 
 
 def _model_to_dict(self,obj):
+    """
+    Convert a model instance to a readonly dict object through ModelDictWrapper
+    """
     try:
         self._dictwrapper.obj = obj
     except AttributeError as es:

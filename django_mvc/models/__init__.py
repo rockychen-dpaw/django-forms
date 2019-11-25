@@ -143,7 +143,7 @@ class ModelDictWrapper(DictWrapper):
         """
         return 1
 
-class AuditMixin(models.Model):
+class Audit(models.Model):
     """Model mixin to update creation/modification datestamp and user
     automatically on save.
     """
@@ -178,7 +178,7 @@ class AuditMixin(models.Model):
                     # ValidationError class, update it to use e.error_list
                     errors[f.name] = e.messages
         try:
-            super(AuditMixin, self).clean_fields(exclude)
+            super(Audit, self).clean_fields(exclude)
         except ValidationError as e:
             errors = e.update_error_dict(errors)
 
