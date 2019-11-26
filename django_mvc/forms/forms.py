@@ -395,7 +395,7 @@ class BaseFormMetaclassMixin(object):
             if hasattr(attrs['Meta'],"all_fields") and not hasattr(attrs['Meta'],"ordered_fields"):
                 setattr(attrs['Meta'],"ordered_fields",getattr(attrs['Meta'],'all_fields'))
 
-            for item in ("editable_fields","columns_attrs","listfooter_fields"):
+            for item in ("editable_fields","listfooter_fields"):
                 if not hasattr(attrs['Meta'],item):
                     config = BaseFormMetaclassMixin.get_meta_property_from_base(bases,item)
                     if config:
@@ -405,7 +405,7 @@ class BaseFormMetaclassMixin(object):
 
 
             #get the configuration from the base classes, and update it with the configration in the Meta class
-            for item in ("labels_config","field_classes_config","widgets_config","error_messages"):
+            for item in ("labels_config","field_classes_config","widgets_config","error_messages","columns_attrs"):
                 config = BaseFormMetaclassMixin.get_meta_property_from_base(bases,item)
                 if not hasattr(attrs['Meta'],item):
                     if config:

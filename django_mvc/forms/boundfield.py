@@ -526,7 +526,7 @@ class ListBoundFieldMixin(object):
             return None
         elif not self.form.sorting :
             return "sortable"
-        elif self.name == self.form.sorting[0]:
+        elif self.form_field_name == self.form.sorting[0]:
             return "asc" if self.form.sorting[1] else "desc"
         else:
             return "sortable"
@@ -540,7 +540,7 @@ class ListBoundFieldMixin(object):
             return ""
         elif not self.form.sorting :
             return getattr(self.form._meta,"sorting_html_class")
-        elif self.name == self.form.sorting[0]:
+        elif self.form_field_name == self.form.sorting[0]:
             return getattr(self.form._meta,"asc_sorting_html_class" if self.form.sorting[1] else "desc_sorting_html_class")
         else:
             return getattr(self.form._meta,"sorting_html_class")
@@ -583,7 +583,7 @@ class ListBoundFieldMixin(object):
         else:
             sorting = self.sorting
             sorting_class = self.sorting_html_class
-            attrs["onclick"] = "document.location='{}'".format(self.form.querystring(ordering="{}{}".format("-" if sorting == 'asc' else '',self.name)))
+            attrs["onclick"] = "document.location='{}'".format(self.form.querystring(ordering="{}{}".format("-" if sorting == 'asc' else '',self.form_field_name)))
 
             if hasattr(self.field,"css_classes"):
                 if "class" in attrs:

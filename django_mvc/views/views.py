@@ -10,6 +10,9 @@ import django.views.generic.edit as django_edit_view
 import django.views.generic.list as django_list_view
 from django.db import transaction
 from django.core.serializers.json import DjangoJSONEncoder
+from django.dispatch import receiver
+from django import template
+
 from urllib.parse import quote
 
 from django_mvc.forms.utils import ChainDict,Media
@@ -18,7 +21,74 @@ from django_mvc.forms.forms import RequestUrlMixin
 from django_mvc.forms.listform import ListForm,ConfirmMixin
 from django_mvc.inspectmodel import (ObjectDependencyTree,ModelDependencyTree)
 import django_mvc.actions
+from django_mvc.signals import formsets_inited,system_ready
+from django_mvc import classproperty
 
+_viewclasses = []
+class ViewInitMixin(object):
+    @classmethod
+    def post_init(cls):
+        try:
+            if "template_name" in cls.__dict__ and cls.__dict__["template_name"]:
+                #tempalte name is already declared in class
+                cls.template_names = [cls.template_name]
+            elif "template_name_suffix" in cls.__dict__ and cls.__dict__["template_name_suffix"]:
+                #tempalte name suffix is already declared in class
+                cls.template_names = ["{}/{}{}.html".format(cls.model._meta.app_label,cls.model._meta.model_name,cls.template_name_suffix)]
+            elif hasattr(cls,"template_names") and cls.template_names:
+                #the template names are already declared in parent class, use it directly
+                pass
+            elif hasattr(cls,"template_name") and cls.template_name:
+                #a template name is already declared in parent class, use it directly
+                cls.template_names = [cls.template_name]
+            else:
+                if hasattr(cls,"template_name_suffix") and cls.template_name_suffix:
+                    template_name = "{}/{}{}.html".format(cls.model._meta.app_label,cls.model._meta.model_name,cls.template_name_suffix)
+                    try:
+                        template.loader.get_template(template_name)
+                    except template.exceptions.TemplateDoesNotExist as e:
+                        template_name = cls.default_template_name
+                else:
+                    template_name = cls.default_template_name
+
+                cls.template_names = [template_name]
+
+            for action_template_prop,action_template_pattern,default_action_template in [
+                    ("deleteconfirm_template","{}/{}_deleteconfirm.html","deleteconfirm.html"),
+                    ("archiveconfirm_template","{}/{}_archiveconfirm.html","archiveconfirm.html")
+            ]:
+                if action_template_prop in cls.__dict__ and cls.__dict__[action_template_prop]:
+                    #action tempalte name is already declared in class
+                    pass
+                if hasattr(cls,action_template_prop) and getattr(cls,action_template_prop):
+                    #action tempalte name is already declared/populated in parent class, use it directly.
+                    pass
+                else:
+                    #action tempalte name is not declared/populated, try to locate one to use
+                    action_template =  action_template_pattern.format(cls.model._meta.app_label.lower(),cls.model.__name__.lower())
+                    try:
+                        template.loader.get_template(action_template)
+                    except template.exceptions.TemplateDoesNotExist as e:
+                        action_template = default_action_template
+
+                    setattr(cls,"{}s".format(action_template_prop),[action_template])
+                    print("{0}: set {1} to {2}".format(cls,action_template_prop,action_template))
+                    
+        except:
+           traceback.print_exc()
+           pass
+
+    def get_template_names(self):
+        return self.template_names
+
+class ViewMetaclass(type):
+    """
+    """
+    def __new__(mcs, name, bases, attrs):
+        new_class = super(ViewMetaclass, mcs).__new__(mcs, name, bases, attrs)
+        if new_class.__module__ != mcs.__module__:
+            _viewclasses.append(new_class)
+        return new_class
 
 class ReturnHttpResponse(Exception):
     def __init__(self,response):
@@ -248,9 +318,9 @@ class RequestActionMixin(django_mvc.actions.GetActionMixin):
 
     def get_template_names(self):
         if self.action == "deleteconfirm" and self.is_action_valid:
-            return [self.deleteconfirm_template if hasattr(self,"deleteconfirm_template") else "{}/{}_deleteconfirm.html".format(self.model._meta.app_label.lower(),self.model.__name__.lower())]
+            return self.deleteconfirm_templates
         elif self.action == "archiveconfirm" and self.is_action_valid:
-            return [self.archiveconfirm_template if hasattr(self,"archiveconfirm_template") else "{}/{}_archiveconfirm.html".format(self.model._meta.app_label.lower(),self.model.__name__.lower())]
+            return self.archiveconfirm_templates
         else:
             return super(RequestActionMixin,self).get_template_names()
 
@@ -720,9 +790,12 @@ class OneToOneModelMixin(ParentObjectMixin):
         return obj
             
         
-class CreateView(ErrorMixin,HtmlMediaMixin,NextUrlMixin,UrlpatternsMixin,FormMixin,ModelMixin,UserMessageMixin,UserMixin,django_edit_view.CreateView):
+class CreateView(ErrorMixin,HtmlMediaMixin,NextUrlMixin,UrlpatternsMixin,FormMixin,ModelMixin,
+        RequestActionMixin,UserMessageMixin,UserMixin,ViewInitMixin,django_edit_view.CreateView,metaclass=ViewMetaclass):
     title = None
+    default_template_name = "changeform.html"
     default_post_action ="save"
+
     def get_form_kwargs(self):
         kwargs = super(CreateView,self).get_form_kwargs()
         kwargs['request'] = self.request
@@ -750,8 +823,10 @@ class CreateView(ErrorMixin,HtmlMediaMixin,NextUrlMixin,UrlpatternsMixin,FormMix
     """
 
 
-class DetailView(HtmlMediaMixin,UrlpatternsMixin,FormMixin,ModelMixin,RequestActionMixin,UserMessageMixin,UserMixin,NextUrlMixin,django_edit_view.UpdateView):
+class DetailView(HtmlMediaMixin,UrlpatternsMixin,FormMixin,ModelMixin,RequestActionMixin,UserMessageMixin,UserMixin,NextUrlMixin,ViewInitMixin,django_edit_view.UpdateView,metaclass=ViewMetaclass):
     title = None
+    default_template_name = "changeform.html"
+
     def get_form_kwargs(self):
         kwargs = super(DetailView,self).get_form_kwargs()
         kwargs['request'] = self.request
@@ -785,8 +860,10 @@ class DetailView(HtmlMediaMixin,UrlpatternsMixin,FormMixin,ModelMixin,RequestAct
     def put(self,request,*args,**kwargs):
         return HttpResponseForbidden()
 
-class UpdateView(ErrorMixin,HtmlMediaMixin,UrlpatternsMixin,NextUrlMixin,FormMixin,ModelMixin,RequestActionMixin,UserMessageMixin,UserMixin,django_edit_view.UpdateView):
+class UpdateView(ErrorMixin,HtmlMediaMixin,UrlpatternsMixin,NextUrlMixin,FormMixin,ModelMixin,
+        RequestActionMixin,UserMessageMixin,UserMixin,ViewInitMixin,django_edit_view.UpdateView,metaclass=ViewMetaclass):
     title = None
+    default_template_name = "changeform.html"
     default_post_action ="save"
 
     def get_form_kwargs(self):
@@ -904,7 +981,7 @@ class ManyToManyModelMixin(ParentObjectMixin):
 
         return HttpResponseRedirect(self.get_success_url())
 
-class ListBaseView(UrlpatternsMixin,ModelMixin,RequestActionMixin,UserMessageMixin,UserMixin,django_list_view.ListView):
+class ListBaseView(UrlpatternsMixin,ModelMixin,RequestActionMixin,UserMessageMixin,UserMixin,ViewInitMixin,django_list_view.ListView,metaclass=ViewMetaclass):
     default_action = "search"
     title = None
     order_by_re = re.compile('[?&]order_by=([-+]?)([a-zA-Z0-9_\-]+)')
@@ -916,11 +993,9 @@ class ListBaseView(UrlpatternsMixin,ModelMixin,RequestActionMixin,UserMessageMix
 
     order_mapping = None
 
-    def get_template_names(self):
-        try:
-            return super().get_template_names()
-        except ImproperlyConfigured:
-            return "{}/{}{}.html".format(self.model._meta.app_label,self.model._meta.model_name,self.template_name_suffix)
+    @classproperty
+    def default_template_name(cls):
+        return "list.html"
 
     def get_filter_class(self):
         return self.filter_class
@@ -1188,6 +1263,14 @@ class ListView(ErrorMixin,HtmlMediaMixin,NextUrlMixin,ListBaseView):
     default_get_action = 'search'
     errorform_keys = ("listform",)
 
+    @classproperty
+    def default_template_name(cls):
+        if cls.listform_class:
+            if cls.listform_class.Meta.detail_fields:
+                return "listwithdetail.html"
+
+        return "list.html"
+
     def get_mediaforms(self):
         filterform_cls = self.get_filterform_class()
         listform_cls = self.get_listform_class()
@@ -1328,4 +1411,12 @@ class OneToManyListUpdateView(OneToManyModelMixin,ListUpdateView):
         except Exception as ex:
             self.listform.add_error(None,str(ex))
             return self.form_invalid()
+
+@receiver(formsets_inited)
+def init_views(sender,**kwargs):
+    for cls in _viewclasses:
+        cls.post_init()
+    system_ready.send(sender="views")
+
+
 

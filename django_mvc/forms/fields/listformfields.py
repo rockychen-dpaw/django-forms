@@ -14,11 +14,12 @@ class ListFormField(forms.Field):
     _listform_class = None
     _listform_class_name = None
     widget = widgets.TextDisplay()
+    null_value = None
 
     boundfield_class = boundfield.ListFormBoundField
 
     def __init__(self, *args,**kwargs):
-        kwargs["widget"] = widgets.ListFormWidget(self)
+        kwargs["widget"] = widgets.ListFormWidget(self,self.null_value)
         kwargs["initial"] = None
         initial = None
         super(ListFormField,self).__init__(*args,**kwargs)
@@ -31,14 +32,17 @@ class ListFormField(forms.Field):
     def model(self):
         return self._listform_class._meta.model
 
-def ListFormFieldFactory(listform_class_name):
+def ListFormFieldFactory(listform_class_name,null_value=None):
     global class_id
 
-    class_key = "ListFormField<{}>".format(hashvalue("ListFormField<{}>".format(listform_class_name)))
+    class_key = "ListFormField<{}>".format(hashvalue("ListFormField<{} {}>".format(listform_class_name,null_value)))
     if class_key not in field_classes:
         class_id += 1
         class_name = "ListFormField_{}".format(class_id)
-        field_classes[class_key] = type(class_name,(ListFormField,),{"_listform_class_name":listform_class_name})
+        if null_value is not None:
+            field_classes[class_key] = type(class_name,(ListFormField,),{"_listform_class_name":listform_class_name,"null_value":null_value})
+        else:
+            field_classes[class_key] = type(class_name,(ListFormField,),{"_listform_class_name":listform_class_name})
     return field_classes[class_key]
 
 

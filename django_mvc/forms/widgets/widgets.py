@@ -886,15 +886,19 @@ class FormSetDisplayWidget(DisplayMixin,forms.Widget):
 
 
 class ListFormWidget(DisplayMixin,forms.Widget):
-    def __init__(self,field):
+    def __init__(self,field,null_value=None):
         self.field = field
         self.widget = self.field.widget
+        self.null_value = mark_safe(null_value) if null_value is not None else None
 
     def __deepcopy__(self, memo):
         return self
 
     def render(self,name,listform,errors=None,attrs=None,renderer=None):
-        return listform.template.render(Context({"form":listform}))
+        if self.null_value is not None and not listform.instance_list:
+            return self.null_value
+        else:
+            return listform.template.render(Context({"form":listform}))
 
 
 @receiver(listformfields_inited)

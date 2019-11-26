@@ -264,6 +264,8 @@ class InnerListFormTableTemplateMixin(forms.FormTemplateMixin):
             listform: the listform object which contains a list of model instance.
         table_styles: a dict contains css for html element; available css keys are listed
             "table","thead","thead-tr","thead-th","thead-td","tbody","tbody-tr","tbody-td","tbody-th","title"
+        table_classes: a dict contains class for html element; available css keys are listed
+            "table","thead","thead-tr","thead-th","thead-td","tbody","tbody-tr","tbody-td","tbody-th","title"
         table_title: the table title
             
     """
@@ -271,6 +273,7 @@ class InnerListFormTableTemplateMixin(forms.FormTemplateMixin):
     def init_template(cls):
         header = getattr(cls.Meta,"table_header",False)
         styles = getattr(cls.Meta,"table_styles",{})
+        classes = getattr(cls.Meta,"table_classes",{})
         title = getattr(cls.Meta,"table_title",None)
         form = cls()
 
@@ -283,6 +286,16 @@ class InnerListFormTableTemplateMixin(forms.FormTemplateMixin):
                 else:
                     styles["{}_style".format(key)] = "style='{}'".format(styles[key])
                 del styles[key]
+
+            if key not in classes:
+                classes["{}_class".format(key)] = ""
+            else:
+                if key in ["thead-th","tbody-td","tbody-th","thead-td"]:
+                    classes["{}_class".format(key)] = classes[key]
+                else:
+                    classes["{}_class".format(key)] = "class='{}'".format(classes[key])
+                del classes[key]
+    
     
         if title:
             table_title = "<caption {1}>{0}</caption>".format(title,styles["title_style"])
@@ -292,8 +305,8 @@ class InnerListFormTableTemplateMixin(forms.FormTemplateMixin):
         table_header = ""
         if header:
             table_header = Template("""
-            <thead {{thead_style}}>
-              <tr {{tr_style}}>
+            <thead {{thead_style}} {{thead_class}}>
+              <tr {{tr_style}} {{tr_classes}}>
                   {% for header in headers %}
                   {{header}}
                   {% endfor %}
@@ -303,11 +316,13 @@ class InnerListFormTableTemplateMixin(forms.FormTemplateMixin):
                 "headers":[field.html_header("<th {attrs}><div class=\"text\"> {label}</div></th>",styles["thead-th_style"]) for field in form.boundfields],
                 "thead_style":styles["thead_style"],
                 "tr_style":styles["thead-tr_style"],
+                "thead_class":classes["thead_class"],
+                "tr_class":classes["thead-tr_class"],
             }))
         else:
             table_header = Template("""
-            <thead {{thead_style}}>
-              <tr {{tr_style}}>
+            <thead {{thead_style}} {{thead_class}}>
+              <tr {{tr_style}} {{tr_class}}>
                   {% for header in headers %}
                   {{header}}
                   {% endfor %}
@@ -317,15 +332,17 @@ class InnerListFormTableTemplateMixin(forms.FormTemplateMixin):
                 "headers":[field.html_header("<th {attrs}><div class=\"text\"> </div></th>",styles["thead-th_style"]) for field in form.boundfields],
                 "thead_style":styles["thead_style"],
                 "tr_style":styles["thead-tr_style"],
+                "thead_class":classes["thead_class"],
+                "tr_class":classes["thead-tr_class"],
             }))
         template = """
         {{% load mvc_utils %}}
-        <table {table_style}>
+        <table {table_style} {table_class}>
             {title}
             {header}
-         <tbody {tbody_style}>
+         <tbody {tbody_style} {tbody_class}>
             {{% for dataform in form %}}
-            <tr {tbody-tr_style}>
+            <tr {tbody-tr_style} {tbody-tr_class}>
                 {{% for field in dataform %}}
                     {{% call_method field "html" "<td {{attrs}}>{{widget}}</td>" "{tbody-td_style}"%}}
                 {{% endfor %}}
@@ -334,7 +351,7 @@ class InnerListFormTableTemplateMixin(forms.FormTemplateMixin):
             </tr>
           </tbody>
         </table>
-        """.format(header = table_header,title=table_title,**styles)
+        """.format(header = table_header,title=table_title,**styles,**classes)
     
         cls.template = Template(template)
     

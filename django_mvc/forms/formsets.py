@@ -11,7 +11,7 @@ from .listform import (ToggleableFieldIterator,ListModelFormMetaclass)
 from . import boundfield
 from . import fields
 from .utils import Media
-from django_mvc.signals import listforms_inited,system_ready
+from django_mvc.signals import listforms_inited,formsets_inited
 
 class FormSetMedia(Media):
     """
@@ -512,7 +512,7 @@ def formset_factory(form, formset=FormSet, extra=1, can_order=False,
 @receiver(listforms_inited)
 def init_formsets(sender,**kwargs):
 
-    system_ready.send(sender="formsets")
+    formsets_inited.send(sender="formsets")
 
 
 
