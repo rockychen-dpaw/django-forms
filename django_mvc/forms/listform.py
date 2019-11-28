@@ -450,11 +450,11 @@ class ListForm(ListFormInitMixin,forms.ActionMixin,forms.RequestUrlMixin,forms.M
 
     @property
     def boundfields(self):
-        return boundfield.BoundFieldIterator(self)
+        return boundfield.get_boundfielditerator(self)
 
     @property
     def bounddetailrows(self):
-        return boundfield.BoundFieldIterator(self,fields=self.Meta.detail_fields,multirows=True)
+        return boundfield.get_boundfielditerator(self,fields=self.Meta.detail_fields)
 
     @property
     def haslistfooter(self):

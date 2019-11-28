@@ -52,6 +52,7 @@ class ViewInitMixin(object):
                     template_name = cls.default_template_name
 
                 cls.template_names = [template_name]
+                print("{0}: set template to {1}".format(cls,template_name))
 
             for action_template_prop,action_template_pattern,default_action_template in [
                     ("deleteconfirm_template","{}/{}_deleteconfirm.html","deleteconfirm.html"),
@@ -81,6 +82,26 @@ class ViewInitMixin(object):
     def get_template_names(self):
         return self.template_names
 
+    @classproperty
+    def default_template_name(cls):
+        if issubclass(cls,ListBaseView):
+            if cls.listform_class:
+                if cls.listform_class.Meta.detail_fields:
+                    return "listwithdetail.html"
+            return "list.html"
+        else:
+            if cls.form_class:
+                if not cls.form_class.Meta.ordered_fields:
+                    return "changeform.html"
+                elif not isinstance(cls.form_class.Meta.ordered_fields[0],(list,tuple)):
+                    return "changeform.html"
+                elif not isinstance(cls.form_class.Meta.ordered_fields[0][-1],(list,tuple)):
+                    return "changeform_multifields.html"
+                else:
+                    return "changeform_multitables.html"
+            else:
+                return "changeform.html"
+
 class ViewMetaclass(type):
     """
     """
@@ -90,9 +111,9 @@ class ViewMetaclass(type):
             _viewclasses.append(new_class)
         return new_class
 
-class ReturnHttpResponse(Exception):
+class HttpResponseRedirectException(Exception):
     def __init__(self,response):
-        super(ReturnHttpResponse,self).__init__(str(response))
+        super(HttpResponseRedirectException,self).__init__(str(response))
         self.response = response
 
 class UserMessageMixin(object):
@@ -386,7 +407,7 @@ class RequestActionMixin(django_mvc.actions.GetActionMixin):
                 if not self.is_default_action:
                     raise Http404("Action '{}' is not supported.".format(self.action))
             return super(RequestActionMixin,self).dispatch(request,*args,**kwargs)
-        except ReturnHttpResponse as ex:
+        except HttpResponseRedirectException as ex:
             return ex.response
         except Http404:
             raise
@@ -657,10 +678,10 @@ class UrlpatternsMixin(object):
         urlpatterns = None
         if issubclass(cls,django_edit_view.CreateView):
             urlpatterns=[path((cls.urlpattern or '{}/add/').format(model_name), cls.as_view(),name=(cls.urlname or '{}_create').format(model_name))]
-        elif issubclass(cls,django_edit_view.UpdateView):
+        elif issubclass(cls,EditView):
             urlpatterns=[path((cls.urlpattern or '{}/<int:pk>/').format(model_name), cls.as_view(),name=(cls.urlname or '{}_update').format(model_name))]
-        elif issubclass(cls,django_edit_view.UpdateView):
-            urlpatterns=[path((cls.urlpattern or '{}/<int:pk>/').format(model_name), cls.as_view(),name=(cls.urlname or '{}_update').format(model_name))]
+        elif issubclass(cls,DetailView):
+            urlpatterns=[path((cls.urlpattern or '{}/<int:pk>/detail/').format(model_name), cls.as_view(),name=(cls.urlname or '{}_detail').format(model_name))]
         elif issubclass(cls,django_edit_view.DeleteView):
             urlpatterns=[path((cls.urlpattern or '{}/<int:pk>/delete/').format(model_name), cls.as_view(),name=(cls.urlname or '{}_delete').format(model_name))]
         elif issubclass(cls,django_list_view.ListView):
@@ -793,7 +814,6 @@ class OneToOneModelMixin(ParentObjectMixin):
 class CreateView(ErrorMixin,HtmlMediaMixin,NextUrlMixin,UrlpatternsMixin,FormMixin,ModelMixin,
         RequestActionMixin,UserMessageMixin,UserMixin,ViewInitMixin,django_edit_view.CreateView,metaclass=ViewMetaclass):
     title = None
-    default_template_name = "changeform.html"
     default_post_action ="save"
 
     def get_form_kwargs(self):
@@ -825,7 +845,6 @@ class CreateView(ErrorMixin,HtmlMediaMixin,NextUrlMixin,UrlpatternsMixin,FormMix
 
 class DetailView(HtmlMediaMixin,UrlpatternsMixin,FormMixin,ModelMixin,RequestActionMixin,UserMessageMixin,UserMixin,NextUrlMixin,ViewInitMixin,django_edit_view.UpdateView,metaclass=ViewMetaclass):
     title = None
-    default_template_name = "changeform.html"
 
     def get_form_kwargs(self):
         kwargs = super(DetailView,self).get_form_kwargs()
@@ -860,21 +879,20 @@ class DetailView(HtmlMediaMixin,UrlpatternsMixin,FormMixin,ModelMixin,RequestAct
     def put(self,request,*args,**kwargs):
         return HttpResponseForbidden()
 
-class UpdateView(ErrorMixin,HtmlMediaMixin,UrlpatternsMixin,NextUrlMixin,FormMixin,ModelMixin,
+class EditView(ErrorMixin,HtmlMediaMixin,UrlpatternsMixin,NextUrlMixin,FormMixin,ModelMixin,
         RequestActionMixin,UserMessageMixin,UserMixin,ViewInitMixin,django_edit_view.UpdateView,metaclass=ViewMetaclass):
     title = None
-    default_template_name = "changeform.html"
     default_post_action ="save"
 
     def get_form_kwargs(self):
-        kwargs = super(UpdateView,self).get_form_kwargs()
+        kwargs = super(EditView,self).get_form_kwargs()
         kwargs['request'] = self.request
         if issubclass(self.get_form_class(),RequestUrlMixin):
             kwargs['requesturl'] = RequestUrl(self.request)
         return kwargs
 
     def get_context_data(self,**kwargs):
-        context = super(UpdateView,self).get_context_data(**kwargs)
+        context = super(EditView,self).get_context_data(**kwargs)
         context["title"] = self.title or "Update {}".format(self.model._meta.verbose_name)
         self.update_context_data(context)
         self.post_update_context_data(context)
@@ -899,16 +917,16 @@ class UpdateView(ErrorMixin,HtmlMediaMixin,UrlpatternsMixin,NextUrlMixin,FormMix
     """
     def get(self,*args,**kwargs):
         import ipdb;ipdb.set_trace()
-        return super(UpdateView,self).get(*args,**kwargs)
+        return super(EditView,self).get(*args,**kwargs)
     """
 
     """
     def post(self,*args,**kwargs):
         import ipdb;ipdb.set_trace()
-        return super(UpdateView,self).post(*args,**kwargs)
+        return super(EditView,self).post(*args,**kwargs)
     """
 
-class OneToOneUpdateView(OneToOneModelMixin,UpdateView):
+class OneToOneEditView(OneToOneModelMixin,EditView):
     pass
 
 class OneToOneDetailView(OneToOneModelMixin,DetailView):
@@ -930,7 +948,7 @@ class OneToManyModelMixin(ParentObjectMixin):
 
         return super(OneToManyModelMixin,self).get_queryset()
 
-class OneToManyUpdateView(OneToManyModelMixin,UpdateView):
+class OneToManyEditView(OneToManyModelMixin,EditView):
     pass
 
 class OneToManyDetailView(OneToManyModelMixin,DetailView):
@@ -992,10 +1010,6 @@ class ListBaseView(UrlpatternsMixin,ModelMixin,RequestActionMixin,UserMessageMix
     template_name_suffix = "_list"
 
     order_mapping = None
-
-    @classproperty
-    def default_template_name(cls):
-        return "list.html"
 
     def get_filter_class(self):
         return self.filter_class
@@ -1141,7 +1155,7 @@ class ListBaseView(UrlpatternsMixin,ModelMixin,RequestActionMixin,UserMessageMix
             queryset = (queryset or self.model.objects).filter(pk__in=selected_ids)
         elif self.nexturl:
             messages.add_message(self.request,messages.ERROR,"No {} is selected".format(self.model_verbose_name))
-            raise ReturnHttpResponse(HttpResponseRedirect(self.nexturl))
+            raise HttpResponseRedirectException(HttpResponseRedirect(self.nexturl))
         else:
             raise Exception("No {} is selected.".format(self.model_verbose_name))
 
@@ -1263,14 +1277,6 @@ class ListView(ErrorMixin,HtmlMediaMixin,NextUrlMixin,ListBaseView):
     default_get_action = 'search'
     errorform_keys = ("listform",)
 
-    @classproperty
-    def default_template_name(cls):
-        if cls.listform_class:
-            if cls.listform_class.Meta.detail_fields:
-                return "listwithdetail.html"
-
-        return "list.html"
-
     def get_mediaforms(self):
         filterform_cls = self.get_filterform_class()
         listform_cls = self.get_listform_class()
@@ -1333,13 +1339,13 @@ class ManyToManyListView(ManyToManyModelMixin,ListView):
     
         return HttpResponseRedirect(self.get_success_url())
         
-class ListUpdateView(ListView):
+class ListEditView(ListView):
     default_post_action = 'save'
     default_get_action = 'search'
     template_name_suffix = "_changelist"
 
     def get_listform_kwargs(self):
-        kwargs = super(ListUpdateView,self).get_listform_kwargs()
+        kwargs = super(ListEditView,self).get_listform_kwargs()
         if self.request.method == "POST":
             kwargs["data"] = self.request.POST
         return kwargs
@@ -1368,11 +1374,11 @@ class ListUpdateView(ListView):
 
 
         
-class OneToManyListUpdateView(OneToManyModelMixin,ListUpdateView):
+class OneToManyListEditView(OneToManyModelMixin,ListEditView):
     atomic_update = True
 
     def get_listform_kwargs(self):
-        kwargs = super(OneToManyListUpdateView,self).get_listform_kwargs()
+        kwargs = super(OneToManyListEditView,self).get_listform_kwargs()
         kwargs["parent_instance"] = self.pobject
         return kwargs
 
@@ -1385,7 +1391,7 @@ class OneToManyListUpdateView(OneToManyModelMixin,ListUpdateView):
             else:
                 return self.form_invalid()
         else:
-            raise Exception("The list form class({}.{}) must be a subclass of FormSet in OneToManyListUpdateView".format(listform_class.__module__,listform_class.__name__))
+            raise Exception("The list form class({}.{}) must be a subclass of FormSet in OneToManyListEditView".format(listform_class.__module__,listform_class.__name__))
 
 
     def form_valid(self):

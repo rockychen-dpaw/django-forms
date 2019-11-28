@@ -1,15 +1,15 @@
 from django.contrib.auth.models import (User,Group)
 
 from django_auth.filters import (UserFilter,)
-from django_auth.forms import (UserListForm,UserFilterForm,UserUpdateForm,UserViewForm)
+from django_auth.forms import (UserListForm,UserFilterForm,UserEditForm,UserViewForm)
 from django_mvc import views
 
 
-class UserUpdateView(views.UpdateView):
+class UserEditView(views.EditView):
     title = "Update User"
     model = User
     context_object_name = "currentuser"
-    form_class = UserUpdateForm
+    form_class = UserEditForm
     urlpattern = "user/<int:pk>/"
     urlname = "user_update"
     template_name_suffix = "_update"
@@ -35,7 +35,7 @@ class UserUpdateView(views.UpdateView):
 
     def get_form_class(self):
         if self.can_admin:
-            return UserUpdateForm
+            return UserEditForm
         else:
             return UserViewForm
 

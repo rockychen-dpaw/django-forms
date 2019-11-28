@@ -1,6 +1,6 @@
 from . import fields
 from . import widgets
-from .boundfield import (BoundFieldIterator,)
+from .boundfield import (get_boundfielditerator,)
 from .forms import (EditableFieldsMixin,ModelForm,RequestUrlMixin,Form,FormTemplateMixin)
 from .filterform import (FilterForm,)
 from .listform import (ListForm,ListMemberForm,InnerListFormTableTemplateMixin,InnerListFormULTemplateMixin,ConfirmMixin)

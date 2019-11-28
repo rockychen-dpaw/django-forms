@@ -1,1 +1,1 @@
-from .user import (UsersView,UserUpdateView)
+from .user import (UsersView,UserEditView)

@@ -1,10 +1,10 @@
-from .views import (UsersView,UserUpdateView)
+from .views import (UsersView,UserEditView)
 
 app_name = "django_auth"
 urlpatterns = []
 
 urlpatterns.extend(UsersView.urlpatterns())
-urlpatterns.extend(UserUpdateView.urlpatterns())
+urlpatterns.extend(UserEditView.urlpatterns())
 
 
 

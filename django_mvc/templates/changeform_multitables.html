@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load mvc_utils %}
+
+{% block content_title %}<h1>{{ title }}</h1>{% endblock %}
+
+{% block content %}
+<div>
+
+<div class="row">
+<div class="span12">
+<form action="" method="post" autocomplete="off" enctype="multipart/form-data">{% csrf_token %}
+    {% if nexturl %}
+    <input type="hidden" name="nexturl" value="{{nexturl}}">
+    {% endif %}
+    {% block form_content%}
+    {% for tables in form.boundfields%}
+    <table class="table table-bordered table-striped table-condensed">
+        <caption style="background: black; color: white; text-align: left; font-size: 16px; padding: 12px;font-weight:bold;" {% if tables.1 %} onclick="$(this).parent().find('tbody').toggle()"  {% endif %}>
+            {{tables.0}}
+            {% if tables.1 %}
+            <span class="pull-right">
+                (Click to expand/collapse)
+            </span>
+            {% endif %}
+        <caption>
+        <tbody {% if tables.2 %} style="display:none" {% endif %}>
+        {% if tables.3 %}
+          {% for rows in tables.4 %}
+            <tr>
+            {% for field in rows %}
+                <th class="cbas" >{{field.label}}</th>
+                <td class="cbas" >{{field}}</td>
+            {% endfor %}
+            </tr>
+          {% endfor %}
+        {% else %}
+          {% for field in tables.4 %}
+            <tr>
+                <th style="width:20%;text-align:right">{{field.label}}</th>
+                <td>{{field}}</td>
+            </tr>
+          {% endfor %}
+        {% endif %}
+        </tbody>
+    </table>
+    {% endfor %}
+    {% endblock %}
+
+    <div class="navbar navbar-fixed-bottom">
+      <div class="navbar-inner">
+        <div class="container">
+          <p class="pull-right">
+            {% for button in form.buttons %}
+                {% call_method button "html" nexturl=nexturl %}
+            {% endfor %}
+          </p>
+        </div>
+      </div>
+    </div>
+</form>
+{% block extra_content%}
+{% endblock %}
+</div>
+</div>
+</div>
+{% endblock %}

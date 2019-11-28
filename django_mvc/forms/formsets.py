@@ -153,7 +153,7 @@ class FormSet(forms.ActionMixin,forms.RequestUrlMixin,formsets.BaseFormSet):
 
     @property
     def boundfields(self):
-        return boundfield.BoundFieldIterator(self.form_instance)
+        return boundfield.get_boundfielditerator(self.form_instance)
 
     @property
     def init_formset_statements(self):
@@ -397,7 +397,7 @@ class FormSetMemberForm(forms.ModelForm,metaclass=ListModelFormMetaclass):
 
     @property
     def boundfields(self):
-        return boundfield.BoundFieldIterator(self)
+        return boundfield.get_boundfielditerator(self)
 
 template_formset_classes = {}
 def TemplateFormsetFactory(form,formset):

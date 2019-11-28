@@ -1298,7 +1298,7 @@ class BaseModelForm(FormInitMixin,ModelFormMetaMixin,forms.models.BaseModelForm,
 
     @property
     def boundfields(self):
-        return boundfield.BoundFieldIterator(self)
+        return boundfield.get_boundfielditerator(self)
 
     def get_initial_for_field(self, field, field_name):
         """

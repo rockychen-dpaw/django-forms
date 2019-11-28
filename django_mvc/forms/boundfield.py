@@ -11,11 +11,32 @@ from django.utils import safestring
 from . import widgets
 from . import fields
 
+iterator_map = {}
+def get_boundfielditerator(form,fields=None):
+    fields = fields or form._meta.ordered_fields
+    try:
+        return iterator_map[id(fields)](form,fields)
+    except:
+        if not fields:
+            cls = BoundFieldIterator
+        elif not isinstance(fields[0],(list,tuple)):
+            cls = BoundFieldIterator
+        elif not isinstance(fields[0][-1],(list,tuple)):
+            cls = MultiRowBoundFieldIterator
+        else:
+            cls = MultiTableBoundFieldIterator
+
+        iterator_map[id(fields)] = cls
+        return cls(form,fields)
+
+
 class BoundFieldIterator(collections.Iterable):
-    def __init__(self,form,fields=None,multirows=False):
+    #fields is a field list
+
+    #iterator member is a boundfield iterator
+    def __init__(self,form,fields=None):
         self.form = form
         self._index = None
-        self._multirows = multirows
         self._fields = fields or self.form._meta.ordered_fields
         self._length = len(self._fields)
 
@@ -27,10 +48,34 @@ class BoundFieldIterator(collections.Iterable):
         self._index += 1
         if self._index >= self._length:
             raise StopIteration()
-        elif self._multirows:
-            return [self.form[f] for f in self._fields[self._index]]
         else:
             return self.form[self._fields[self._index]]
+
+class MultiRowBoundFieldIterator(BoundFieldIterator):
+    #fields is a row list, each row is a field list
+    def __next__(self):
+        self._index += 1
+        if self._index >= self._length:
+            raise StopIteration()
+        else:
+            return [self.form[f] for f in self._fields[self._index]]
+
+class MultiTableBoundFieldIterator(BoundFieldIterator):
+    #fields is a table list
+    #each table is a tuple (table title, collapsable(True of False), default collapse status(collpase if True) , fields(can be field list or row list))
+
+    #iterator member is a tuple (table title, collapsable(True of False), default collapse status(collpase if True), is multi row(Multi row if true) , boundfield iterator)
+    def __next__(self):
+        self._index += 1
+        if self._index >= self._length:
+            raise StopIteration()
+        else:
+            t = self._fields[self._index]
+            field_iterator =  get_boundfielditerator(self.form,t[3])
+            if isinstance(field_iterator,MultiRowBoundFieldIterator):
+                return [t[0],t[1],t[2],True,get_boundfielditerator(self.form,t[3])]
+            else:
+                return [t[0],t[1],t[2],False,get_boundfielditerator(self.form,t[3])]
 
 class HtmlStringBoundField(forms.boundfield.BoundField):
     def __init__(self, form, field, name):

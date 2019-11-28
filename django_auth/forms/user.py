@@ -93,7 +93,7 @@ class UserForm(forms.ModelForm):
         third_party_model=True
         all_fields = ('is_active', 'groups')
 
-class UserUpdateForm(UserBaseForm):
+class UserEditForm(UserBaseForm):
     all_buttons = [
         BUTTON_ACTIONS["update_user"],
         BUTTON_ACTIONS["cancel"]
@@ -107,7 +107,7 @@ class UserUpdateForm(UserBaseForm):
         editable_fields = ["is_active","groups"]
 
 
-class UserViewForm(UserUpdateForm):
+class UserViewForm(UserEditForm):
     all_buttons = [
         BUTTON_ACTIONS["cancel"]
     ]

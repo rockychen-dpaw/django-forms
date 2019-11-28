@@ -1,9 +1,10 @@
 from .views import (RequestActionMixin,UrlpatternsMixin,ParentObjectMixin,SendDataThroughUrlMixin,
         CreateView,OneToManyCreateView,
         DetailView,OneToOneDetailView,OneToManyDetailView,
-        UpdateView,OneToOneUpdateView,OneToManyUpdateView,
+        EditView,OneToOneEditView,OneToManyEditView,
         ListView,OneToManyListView,ManyToManyListView,
-        ListUpdateView,OneToManyListUpdateView,)
+        ListEditView,OneToManyListEditView,
+        HttpResponseRedirectException)
 
 
 from django.template import Context, loader
